@@ -129,9 +129,6 @@ function genCatchall(_c: SiteConfig, _ep: string): string {
 
 // ─── Route matching helpers ───────────────────────────────────────────────────
 
-function _exact(path: string): Matcher {
-	return path;
-}
 function fixed(g: Gen): GenFactory {
 	return () => g;
 }
@@ -704,8 +701,6 @@ export function classifySpecific(
 	}
 	return null;
 }
-
-export { classify, matchesEndpoint, ROUTES, SPECIFIC_ROUTES };
 
 /**
  * List of all supported honeypot endpoints.
