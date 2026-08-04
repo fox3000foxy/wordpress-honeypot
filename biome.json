@@ -1,4 +1,7 @@
 {
+	"files": {
+		"includes": ["src/**/*", "scripts/**/*", "!src/files.generated.ts"]
+	},
 	"assist": {
 		"actions": {
 			"source": {

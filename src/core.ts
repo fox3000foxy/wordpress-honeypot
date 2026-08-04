@@ -485,7 +485,7 @@ const SPECIFIC_ROUTES: Record<string, Gen> = {
 			page: 1,
 			per_page: 20,
 		}),
-	"/api/auth/session.json": (c) =>
+	"/api/auth/session.json": (_c) =>
 		JSON.stringify(
 			{
 				success: false,
@@ -570,8 +570,7 @@ function classify(endpoint: string): Gen | null {
 				return raw ? injectSitemap(raw, c) : genCatchall(c, endpoint);
 			};
 		}
-		return (c) =>
-			loadWww(file, c) ?? genCatchall(c, endpoint);
+		return (c) => loadWww(file, c) ?? genCatchall(c, endpoint);
 	}
 
 	// Try wildcard file patterns
@@ -579,9 +578,7 @@ function classify(endpoint: string): Gen | null {
 		const m = endpoint.match(wc.pattern);
 		if (m) {
 			const filePath = wc.toFile(m);
-			return (c) =>
-				loadWww(filePath, c) ??
-				genCatchall(c, endpoint);
+			return (c) => loadWww(filePath, c) ?? genCatchall(c, endpoint);
 		}
 	}
 

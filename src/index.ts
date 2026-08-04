@@ -2,7 +2,7 @@
  * wordpress-honeypot — Realistic WordPress honeypot for trapping scanners, bots, and AI agents.
  *
  * @example
- * ```ts
+ * \`\`\`ts
  * import { getResponse, detectDomain } from "wordpress-honeypot";
  *
  * // Generate a response for a specific endpoint
@@ -10,7 +10,7 @@
  *
  * // Auto-detect domain from request
  * const domain = detectDomain({ headers: { host: "example.com" } });
- * ```
+ * \`\`\`
  *
  * @packageDocumentation
  */
@@ -99,3 +99,7 @@ export {
 	 */
 	injectSitemap,
 } from "./inject.js";
+
+// File paths
+export { MockupPaths } from "./files.generated.js";
+export type { MockupPath } from "./files.generated.js";
