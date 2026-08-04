@@ -1,13 +1,25 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import {
-	buildHitEvent,
-	detectDomain,
-	getPhpHeaders,
-	getResponse,
-	resolveConfig,
-} from "../adapter-utils.js";
+import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
+
+function resolveConfig(
+	config: Partial<SiteConfig> | undefined,
+	reqHost?: string,
+): SiteConfig {
+	return {
+		domain: config?.domain || reqHost || "localhost",
+		...config,
+	};
+}
+
+function clientIp(h: Record<string, any>): string | undefined {
+	return (
+		h["cf-connecting-ip"] ||
+		h["x-forwarded-for"]?.split(",")[0]?.trim() ||
+		h["x-real-ip"]
+	);
+}
 
 /**
  * Node.js `http.createServer` handler for the honeypot.
@@ -54,15 +66,15 @@ export function nodeHttpHandler(
 		const response = getResponse(cfg, endpoint);
 		if (!response) return false;
 
-		options?.emitter?.emit(
-			"hit",
-			buildHitEvent(
-				endpoint,
-				req.headers as Record<string, string>,
-				req.url || endpoint,
-				req.method || "GET",
-			),
-		);
+		options?.emitter?.emit("hit", {
+			endpoint,
+			ip: clientIp(req.headers as Record<string, any>),
+			userAgent: req.headers["user-agent"],
+			referer: req.headers.referer,
+			url: req.url || endpoint,
+			timestamp: new Date().toISOString(),
+			method: req.method || "GET",
+		});
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {

@@ -1,33 +1,14 @@
 import { FILES } from "./files.generated.js";
 import type { SiteConfig } from "./types.js";
 
-const MAX_RAW_CACHE = 2000;
-const MAX_FILLED_CACHE = 500;
-const FILL_TTL_MS = 60 * 60 * 1000; // 1 hour
-
 const rawCache = new Map<string, string>();
-
-interface CacheEntry {
-	value: string;
-	expiresAt: number;
-}
-
-const filledCache = new Map<string, CacheEntry>();
-
-function evictOldest(cache: Map<string, CacheEntry>, max: number): void {
-	if (cache.size <= max) return;
-	const oldest = cache.keys().next().value;
-	if (oldest !== undefined) cache.delete(oldest);
-}
+const filledCache = new Map<string, string>();
 
 function loadRaw(rel: string): string | null {
 	if (rawCache.has(rel)) return rawCache.get(rel)!;
 	const content = FILES[rel];
 	if (content === undefined) return null;
-	if (rawCache.size >= MAX_RAW_CACHE) {
-		const oldest = rawCache.keys().next().value;
-		if (oldest !== undefined) rawCache.delete(oldest);
-	}
+	if (rawCache.size > 2_000) rawCache.clear();
 	rawCache.set(rel, content);
 	return content;
 }
@@ -97,19 +78,14 @@ export function loadWww(rel: string, config: SiteConfig): string | null {
 	const key = cacheKey(normalized, config);
 
 	const cached = filledCache.get(key);
-	if (cached !== undefined && cached.expiresAt > Date.now()) {
-		return cached.value;
-	}
-	if (cached !== undefined) {
-		filledCache.delete(key);
-	}
+	if (cached !== undefined) return cached;
 
 	const raw = loadRaw(normalized);
 	if (raw === null) return null;
 
 	const filled = fill(raw, config);
-	evictOldest(filledCache, MAX_FILLED_CACHE);
-	filledCache.set(key, { value: filled, expiresAt: Date.now() + FILL_TTL_MS });
+	if (filledCache.size > 500) filledCache.clear();
+	filledCache.set(key, filled);
 	return filled;
 }
 

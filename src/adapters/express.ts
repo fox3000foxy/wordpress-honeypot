@@ -1,12 +1,24 @@
-import {
-	buildHitEvent,
-	detectDomain,
-	getPhpHeaders,
-	getResponse,
-	resolveConfig,
-} from "../adapter-utils.js";
+import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
+
+function resolveConfig(
+	config: Partial<SiteConfig> | undefined,
+	reqHost?: string,
+): SiteConfig {
+	return {
+		domain: config?.domain || reqHost || "localhost",
+		...config,
+	};
+}
+
+function clientIp(h: Record<string, any>): string | undefined {
+	return (
+		h["cf-connecting-ip"] ||
+		h["x-forwarded-for"]?.split(",")[0]?.trim() ||
+		h["x-real-ip"]
+	);
+}
 
 /**
  * Express middleware that serves realistic WordPress honeypot responses.
@@ -51,15 +63,15 @@ export function expressMiddleware(
 			return next();
 		}
 
-		options?.emitter?.emit(
-			"hit",
-			buildHitEvent(
-				endpoint,
-				req.headers ?? {},
-				req.originalUrl || req.url,
-				req.method || "GET",
-			),
-		);
+		options?.emitter?.emit("hit", {
+			endpoint,
+			ip: clientIp(req.headers ?? {}),
+			userAgent: req.headers?.["user-agent"],
+			referer: req.headers?.referer,
+			url: req.originalUrl || req.url,
+			timestamp: new Date().toISOString(),
+			method: req.method || "GET",
+		});
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {
