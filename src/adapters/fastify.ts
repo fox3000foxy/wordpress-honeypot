@@ -1,16 +1,12 @@
-import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
+import {
+	buildHitEvent,
+	detectDomain,
+	getPhpHeaders,
+	getResponse,
+	resolveConfig,
+} from "../adapter-utils.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
-
-function resolveConfig(
-	config: Partial<SiteConfig> | undefined,
-	reqHost?: string,
-): SiteConfig {
-	return {
-		domain: config?.domain || reqHost || "localhost",
-		...config,
-	};
-}
 
 /**
  * Fastify plugin that serves realistic WordPress honeypot responses.
@@ -54,19 +50,10 @@ export function fastifyPlugin(
 		const response = getResponse(cfg, endpoint);
 		if (!response) return;
 
-		// Emit hit event
-		emitter?.emit("hit", {
-			endpoint,
-			ip:
-				req.headers?.["cf-connecting-ip"] ||
-				req.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
-				req.headers?.["x-real-ip"],
-			userAgent: req.headers?.["user-agent"],
-			referer: req.headers?.referer,
-			url: req.url,
-			timestamp: new Date().toISOString(),
-			method: req.method || "GET",
-		});
+		emitter?.emit(
+			"hit",
+			buildHitEvent(endpoint, req.headers ?? {}, req.url, req.method || "GET"),
+		);
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {

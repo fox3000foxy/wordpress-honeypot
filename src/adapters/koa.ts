@@ -1,16 +1,12 @@
-import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
+import {
+	buildHitEvent,
+	detectDomain,
+	getPhpHeaders,
+	getResponse,
+	resolveConfig,
+} from "../adapter-utils.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
-
-function resolveConfig(
-	config: Partial<SiteConfig> | undefined,
-	reqHost?: string,
-): SiteConfig {
-	return {
-		domain: config?.domain || reqHost || "localhost",
-		...config,
-	};
-}
 
 /**
  * Koa middleware that serves realistic WordPress honeypot responses.
@@ -52,19 +48,15 @@ export function koaMiddleware(
 			return next();
 		}
 
-		// Emit hit event
-		options?.emitter?.emit("hit", {
-			endpoint,
-			ip:
-				ctx.request.headers["cf-connecting-ip"] ||
-				ctx.request.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-				ctx.request.headers["x-real-ip"],
-			userAgent: ctx.request.headers["user-agent"],
-			referer: ctx.request.headers.referer,
-			url: ctx.request.url,
-			timestamp: new Date().toISOString(),
-			method: ctx.method || "GET",
-		});
+		options?.emitter?.emit(
+			"hit",
+			buildHitEvent(
+				endpoint,
+				ctx.request.headers,
+				ctx.request.url,
+				ctx.method || "GET",
+			),
+		);
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {

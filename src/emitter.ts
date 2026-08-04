@@ -49,9 +49,17 @@ export class HoneypotEmitter extends EventEmitter<HoneypotEvents> {
 	/** Map of endpoint → hit count. */
 	readonly hits = new Map<string, number>();
 
-	constructor() {
+	/** Max number of distinct endpoints tracked. Oldest entries evicted on overflow. */
+	readonly maxTracked: number;
+
+	constructor(options?: { maxTracked?: number }) {
 		super();
+		this.maxTracked = options?.maxTracked ?? 10_000;
 		this.on("hit", (hit) => {
+			if (!this.hits.has(hit.endpoint) && this.hits.size >= this.maxTracked) {
+				const oldest = this.hits.keys().next().value;
+				if (oldest !== undefined) this.hits.delete(oldest);
+			}
 			const count = this.hits.get(hit.endpoint) ?? 0;
 			this.hits.set(hit.endpoint, count + 1);
 		});
@@ -73,5 +81,21 @@ export class HoneypotEmitter extends EventEmitter<HoneypotEvents> {
 			total += count;
 		}
 		return total;
+	}
+
+	/**
+	 * Reset all hit counts.
+	 */
+	reset(): void {
+		this.hits.clear();
+	}
+
+	/**
+	 * Remove all listeners and clear hit counts.
+	 * Call this when the emitter is no longer needed to prevent memory leaks.
+	 */
+	destroy(): void {
+		this.removeAllListeners();
+		this.hits.clear();
 	}
 }

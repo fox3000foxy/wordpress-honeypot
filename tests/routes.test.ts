@@ -89,16 +89,26 @@ describe("SPECIFIC_ROUTES", () => {
 });
 
 describe("ROUTES (programmatic)", () => {
-  it("SSH key returns .my.cnf (wildcard fallback)", () => {
-    const result = generateMockup(config, "/.ssh/id_rsa");
-    expect(result).toContain("[client]");
-    expect(result).toContain("wp_admin");
-  });
+	it("SSH key returns real file content", () => {
+		const result = generateMockup(config, "/.ssh/id_rsa");
+		expect(result).toContain("OPENSSH PRIVATE KEY");
+	});
 
-  it("authorized_keys uses config domain", () => {
-    const result = generateMockup(config, "/.ssh/authorized_keys");
-    expect(result).toContain("deploy@example.com");
-  });
+	it("SSH ecdsa returns real file content", () => {
+		const result = generateMockup(config, "/.ssh/id_ecdsa");
+		expect(result).toContain("OPENSSH PRIVATE KEY");
+	});
+
+	it("SSH ed25519 returns real file content", () => {
+		const result = generateMockup(config, "/.ssh/id_ed25519");
+		expect(result).toContain("OPENSSH PRIVATE KEY");
+	});
+
+	it("authorized_keys returns real file content", () => {
+		const result = generateMockup(config, "/.ssh/authorized_keys");
+		expect(result).toContain("ssh-ed25519");
+		expect(result).toContain("deploy@example.com");
+	});
 
   it("wp-json users endpoint returns user data", () => {
     const result = generateMockup(config, "/wp-json/wp/v2/users/");

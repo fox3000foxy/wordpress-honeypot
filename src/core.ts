@@ -86,6 +86,10 @@ const FILE_MAP: Record<string, string> = {
 	"/mongo/replica": "mongo/replica.conf",
 	"/.my.cnf": ".my.cnf",
 	"/my.cnf": ".my.cnf",
+	"/.ssh/id_rsa": ".ssh/id_rsa",
+	"/.ssh/id_ecdsa": ".ssh/id_ecdsa",
+	"/.ssh/id_ed25519": ".ssh/id_ed25519",
+	"/.ssh/authorized_keys": ".ssh/authorized_keys",
 	"/wp-content/debug.log": "wp-content/debug.log",
 	"/wp-content/languages/fr_FR.po": "wp-content/languages/fr_FR.po",
 	"/server-status/": "server-status/index.html",
@@ -115,10 +119,6 @@ const WILDCARD_FILES: Array<{
 		pattern: /^\/home\/[^/]+\/\.bash_history$/,
 		toFile: () => "home/fox3000foxy/.bash_history",
 	},
-	{
-		pattern: /^\/\.ssh\/(id_rsa|id_ecdsa|id_ed25519)$/,
-		toFile: () => ".my.cnf",
-	}, // fallback
 ];
 
 // ─── Catchall ────────────────────────────────────────────────────────────────
@@ -147,22 +147,6 @@ function matchesEndpoint(matcher: Matcher, endpoint: string): boolean {
 const ROUTES: RouteRule[] = [
 	// ── Static files from www/ ──
 	// These are checked first via FILE_MAP before falling through to generators.
-
-	// ── SSH / MySQL (no file, generator) ──
-	{
-		match: /id_rsa|id_ecdsa|id_ed25519/,
-		gen: fixed(
-			(_c) =>
-				`-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACBHK9s9vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vA`,
-		),
-	},
-	{
-		match: /authorized_keys/,
-		gen: fixed(
-			(c) =>
-				`# Deploy keys\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7vKz... deploy@${c.domain}`,
-		),
-	},
 
 	// ── WP REST API ──
 	{
@@ -628,8 +612,8 @@ export function getResponse(
 				body.startsWith("<html") ||
 				body.startsWith("<?xml")
 					? "text/html; charset=UTF-8"
-					: body.startsWith("<?php") || body.startsWith("<string")
-						? "text/html; charset=UTF-8"
+					: body.startsWith("{") || body.startsWith("[")
+						? "application/json; charset=UTF-8"
 						: "text/plain; charset=UTF-8",
 			...getPhpHeaders(config),
 		},
@@ -678,7 +662,7 @@ const HONEYPOT_PATHS = new Set<string>([
 	),
 ]);
 const HONEYPOT_PATTERNS = ROUTES.filter((r) => r.match instanceof RegExp).map(
-	(r) => r.match as RegExp,
+	(r) => [r.match as RegExp, r.gen] as const,
 );
 
 /**
@@ -696,8 +680,8 @@ export function classifySpecific(
 	endpoint: string,
 ): Gen | null {
 	if (HONEYPOT_PATHS.has(endpoint)) return classify(endpoint);
-	for (const pat of HONEYPOT_PATTERNS) {
-		if (pat.test(endpoint)) return classify(endpoint);
+	for (const [pat, genFactory] of HONEYPOT_PATTERNS) {
+		if (pat.test(endpoint)) return genFactory(endpoint);
 	}
 	return null;
 }
@@ -715,6 +699,7 @@ export const ALL_ENDPOINTS = [
 	"/.ssh/id_rsa",
 	"/.ssh/id_ecdsa",
 	"/.ssh/id_ed25519",
+	"/.ssh/authorized_keys",
 	"/backup.sh",
 	"/composer.json",
 	"/etc/apache2/sites-available/*.conf",

@@ -1,16 +1,12 @@
-import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
+import {
+	buildHitEvent,
+	detectDomain,
+	getPhpHeaders,
+	getResponse,
+	resolveConfig,
+} from "../adapter-utils.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
-
-function resolveConfig(
-	config: Partial<SiteConfig> | undefined,
-	reqHost?: string,
-): SiteConfig {
-	return {
-		domain: config?.domain || reqHost || "localhost",
-		...config,
-	};
-}
 
 /**
  * Hono middleware that serves realistic WordPress honeypot responses.
@@ -43,7 +39,11 @@ export function honoMiddleware(
 ) {
 	return async (c: any, next: any) => {
 		const endpoint = c.req.path;
-		const detected = detectDomain({ headers: c.req.raw.headers });
+		const rawHeaders: Record<string, string> = {};
+		c.req.raw.headers.forEach((v: string, k: string) => {
+			rawHeaders[k] = v;
+		});
+		const detected = detectDomain({ headers: rawHeaders });
 		const cfg = resolveConfig(config, detected);
 
 		const response = getResponse(cfg, endpoint);
@@ -51,19 +51,10 @@ export function honoMiddleware(
 			return next();
 		}
 
-		// Emit hit event
-		options?.emitter?.emit("hit", {
-			endpoint,
-			ip:
-				c.req.raw.headers.get("cf-connecting-ip") ||
-				c.req.raw.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-				c.req.raw.headers.get("x-real-ip"),
-			userAgent: c.req.raw.headers.get("user-agent"),
-			referer: c.req.raw.headers.get("referer"),
-			url: c.req.url,
-			timestamp: new Date().toISOString(),
-			method: c.req.method,
-		});
+		options?.emitter?.emit(
+			"hit",
+			buildHitEvent(endpoint, rawHeaders, c.req.url, c.req.method),
+		);
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {

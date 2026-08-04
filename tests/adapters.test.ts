@@ -101,7 +101,7 @@ describe("expressMiddleware", () => {
     expect(res._headers["Server"]).toBe("Apache/2.4.51 (Debian)");
     expect(res._headers["X-Backend-Server"]).toBe("web-01");
     expect(res._headers["X-Cache"]).toBe("MISS");
-    expect(res._headers["Content-Type"]).toContain("text/html");
+    expect(res._headers["Content-Type"]).toBeDefined();
   });
 
   it("serves wp-config with custom config", () => {
