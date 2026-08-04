@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { buildSync } from "esbuild";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const entryPoints = [
@@ -14,6 +14,7 @@ const entryPoints = [
 ];
 
 mkdirSync("dist/cjs", { recursive: true });
+mkdirSync("dist/cjs/adapters", { recursive: true });
 
 for (const entry of entryPoints) {
 	const outName = entry.replace("src/", "").replace(".ts", ".js");
@@ -26,12 +27,23 @@ for (const entry of entryPoints) {
 		platform: "node",
 		target: "node18",
 		outfile: outPath,
-		external: ["express", "fastify", "hono", "koa"],
+		external: [
+			"express",
+			"fastify",
+			"hono",
+			"koa",
+			"./files.generated.js",
+		],
 		sourcemap: true,
 		minify: false,
 	});
 }
 
-writeFileSync("dist/cjs/package.json", '{"type":"commonjs"}\n');
+// Copy files.generated.js to CJS output (so require() can find it)
+cpSync(
+	join(import.meta.dirname, "..", "dist", "esm", "files.generated.js"),
+	join(import.meta.dirname, "..", "dist", "cjs", "files.generated.js"),
+);
 
+writeFileSync("dist/cjs/package.json", '{"type":"commonjs"}\n');
 console.log("✅ CJS build complete");
