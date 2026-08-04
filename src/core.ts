@@ -68,7 +68,6 @@ const FILE_MAP: Record<string, string> = {
 	"/env.production": ".env.production",
 	"/env.backup": ".env.backup",
 	"/api/.env": ".env.production",
-	"/backup.sh": "backup.sh",
 	"/composer.json": "composer.json",
 	"/todo.txt": "todo.txt",
 	"/notes.md": "notes.md",
@@ -461,6 +460,91 @@ const SPECIFIC_ROUTES: Record<string, Gen> = {
 			allowed_ips: ["10.0.0.0/8", "172.16.0.0/12"],
 			rate_limit: 100,
 			rate_limit_window_sec: 60,
+		}),
+	// ── API endpoints (dynamic) ──
+	"/api/users/": (c) =>
+		j(c, {
+			users: [
+				{
+					id: 1,
+					username: c.dbUser,
+					email: c.adminEmail,
+					role: "admin",
+					twoFactor: false,
+				},
+				{
+					id: 2,
+					username: "deploy_bot",
+					email: `deploy@${c.domain}`,
+					role: "service",
+					twoFactor: false,
+				},
+			],
+			total: 2,
+			page: 1,
+			per_page: 20,
+		}),
+	"/api/auth/session.json": (c) =>
+		JSON.stringify(
+			{
+				success: false,
+				code: 401,
+				error: "invalid_session",
+				message: "The provided session token is invalid or expired.",
+				request_id: `req_${Date.now().toString(36)}`,
+				timestamp: new Date().toISOString(),
+				data: {
+					hint: "Re-issue via the account console with current credentials.",
+					key_hint: "sk_live_51Nx9kL2vRm8tC4jW3aQbY0pD",
+				},
+			},
+			null,
+			2,
+		),
+	"/api/admin/": (c) =>
+		JSON.stringify(
+			{
+				success: false,
+				code: 403,
+				error: "forbidden",
+				message: "This endpoint requires administrative privileges.",
+				request_id: `req_${Date.now().toString(36)}`,
+				timestamp: new Date().toISOString(),
+				documentation: "/docs/admin",
+				staging: `https://staging.${c.domain}/admin`,
+				hint: `Accessible with cookie ${c.dbUser}_session`,
+			},
+			null,
+			2,
+		),
+	"/api/internal/config.json": (c) =>
+		JSON.stringify(
+			{
+				internal: true,
+				baseUrl: `http://10.0.0.${Math.floor(Math.random() * 255)}:8080`,
+				serviceAccount: `svc-${c.dbUser}@internal`,
+				healthSecret: `int_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}`,
+				serviceAccountToken: `gha_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 30)}`,
+				endpoints: {
+					metrics: "/internal/metrics",
+					prometheus: ":9090",
+					registry: "registry.internal:5000",
+				},
+				note: "Internal services. Do not expose publicly.",
+			},
+			null,
+			2,
+		),
+	"/api/health/": (c) =>
+		j(c, {
+			status: "ok",
+			uptime: Math.floor(Date.now() / 1000) % 86400,
+			version: "2.4.1",
+			commit: "9f8e7d6",
+			environment: "production",
+			serverTime: new Date().toISOString(),
+			debug: false,
+			message: "Service is healthy.",
 		}),
 };
 
