@@ -29,8 +29,6 @@ export type {
 	GenFactory,
 	/** HTTP response from the honeypot. */
 	HoneypotResponse,
-	/** Framework adapter function type. */
-	FrameworkAdapter,
 } from "./types.js";
 
 // Core API

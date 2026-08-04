@@ -125,12 +125,3 @@ export interface HoneypotResponse {
 	/** Response body (HTML, plain text, JSON, or PHP source). */
 	body: string;
 }
-
-/**
- * Framework adapter function type.
- * Returns a middleware/handler for the given framework.
- */
-export type FrameworkAdapter = (
-	config?: Partial<SiteConfig>,
-	options?: { emitter?: import("./emitter.js").HoneypotEmitter },
-) => (req: any, res: any, next?: any) => void;
