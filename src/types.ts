@@ -132,4 +132,5 @@ export interface HoneypotResponse {
  */
 export type FrameworkAdapter = (
 	config?: Partial<SiteConfig>,
+	options?: { emitter?: import("./emitter.js").HoneypotEmitter },
 ) => (req: any, res: any, next?: any) => void;

@@ -1,4 +1,5 @@
 import type { SiteConfig } from "../types.js";
+import type { HoneypotEmitter } from "../emitter.js";
 import {
 	getResponse,
 	getPhpHeaders,
@@ -23,22 +24,28 @@ function resolveConfig(
  * All other requests are passed through to later routes/middleware.
  *
  * @param config - Partial site configuration (domain auto-detected if missing)
+ * @param options - Optional emitter for logging honeypot hits
  * @returns Hono middleware function
  *
  * @example
  * ```ts
  * import { Hono } from "hono";
  * import { honoMiddleware } from "wordpress-honeypot/hono";
+ * import { HoneypotEmitter } from "wordpress-honeypot";
+ *
+ * const emitter = new HoneypotEmitter();
+ * emitter.on("hit", (hit) => {
+ *   console.log(`[HONEYPOT] ${hit.ip} hit ${hit.endpoint}`);
+ * });
  *
  * const app = new Hono();
- * app.use("*", honoMiddleware({
- *   domain: "example.com",
- *   siteName: "my-blog",
- *   dbName: "wp_production",
- * }));
+ * app.use("*", honoMiddleware({ domain: "example.com" }, { emitter }));
  * ```
  */
-export function honoMiddleware(config?: Partial<SiteConfig>) {
+export function honoMiddleware(
+	config?: Partial<SiteConfig>,
+	options?: { emitter?: HoneypotEmitter },
+) {
 	return async (c: any, next: any) => {
 		const endpoint = c.req.path;
 		const detected = detectDomain({ headers: c.req.raw.headers });
@@ -52,6 +59,20 @@ export function honoMiddleware(config?: Partial<SiteConfig>) {
 		if (!response) {
 			return next();
 		}
+
+		// Emit hit event
+		options?.emitter?.emit("hit", {
+			endpoint,
+			ip:
+				c.req.raw.headers.get("cf-connecting-ip") ||
+				c.req.raw.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+				c.req.raw.headers.get("x-real-ip"),
+			userAgent: c.req.raw.headers.get("user-agent"),
+			referer: c.req.raw.headers.get("referer"),
+			url: c.req.url,
+			timestamp: new Date().toISOString(),
+			method: c.req.method,
+		});
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {

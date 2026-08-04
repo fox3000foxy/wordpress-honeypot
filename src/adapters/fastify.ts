@@ -1,4 +1,5 @@
 import type { SiteConfig } from "../types.js";
+import type { HoneypotEmitter } from "../emitter.js";
 import {
 	getResponse,
 	getPhpHeaders,
@@ -29,26 +30,50 @@ function resolveConfig(
  * ```ts
  * import Fastify from "fastify";
  * import { fastifyPlugin } from "wordpress-honeypot/fastify";
+ * import { HoneypotEmitter } from "wordpress-honeypot";
+ *
+ * const emitter = new HoneypotEmitter();
+ * emitter.on("hit", (hit) => {
+ *   console.log(`[HONEYPOT] ${hit.ip} hit ${hit.endpoint}`);
+ * });
  *
  * const app = Fastify();
  * app.register(fastifyPlugin, {
  *   domain: "example.com",
- *   siteName: "my-blog",
- *   dbName: "wp_production",
+ *   emitter,
  * });
  * app.listen({ port: 8080 });
  * ```
  */
-export function fastifyPlugin(fastify: any, options: Partial<SiteConfig> = {}) {
+export function fastifyPlugin(
+	fastify: any,
+	options: Partial<SiteConfig> & { emitter?: HoneypotEmitter } = {},
+) {
+	const { emitter, ...config } = options;
+
 	fastify.addHook("onRequest", async (req: any, reply: any) => {
 		const endpoint = req.url.split("?")[0];
 		const detected = detectDomain(req);
-		const cfg = resolveConfig(options, detected);
+		const cfg = resolveConfig(config, detected);
 
 		if (!classifySpecific(cfg, endpoint)) return;
 
 		const response = getResponse(cfg, endpoint);
 		if (!response) return;
+
+		// Emit hit event
+		emitter?.emit("hit", {
+			endpoint,
+			ip:
+				req.headers?.["cf-connecting-ip"] ||
+				req.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
+				req.headers?.["x-real-ip"],
+			userAgent: req.headers?.["user-agent"],
+			referer: req.headers?.referer,
+			url: req.url,
+			timestamp: new Date().toISOString(),
+			method: req.method || "GET",
+		});
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {

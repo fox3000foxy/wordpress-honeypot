@@ -103,3 +103,7 @@ export {
 // File paths
 export { MockupPaths } from "./files.generated.js";
 export type { MockupPath } from "./files.generated.js";
+
+// Emitter
+export { HoneypotEmitter, extractIp } from "./emitter.js";
+export type { HoneypotHit, HoneypotEvents } from "./emitter.js";

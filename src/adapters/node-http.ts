@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { SiteConfig } from "../types.js";
+import type { HoneypotEmitter } from "../emitter.js";
 import {
 	getResponse,
 	getPhpHeaders,
@@ -24,18 +25,21 @@ function resolveConfig(
  * Returns `true` if the request was handled (response sent), `false` if no honeypot route matched.
  *
  * @param config - Partial site configuration (domain auto-detected if missing)
+ * @param options - Optional emitter for logging honeypot hits
  * @returns Handler function that returns whether the request was handled
  *
  * @example
  * ```ts
  * import { createServer } from "http";
  * import { nodeHttpHandler } from "wordpress-honeypot/node";
+ * import { HoneypotEmitter } from "wordpress-honeypot";
  *
- * const handler = nodeHttpHandler({
- *   domain: "example.com",
- *   siteName: "my-blog",
- *   dbName: "wp_production",
+ * const emitter = new HoneypotEmitter();
+ * emitter.on("hit", (hit) => {
+ *   console.log(`[HONEYPOT] ${hit.ip} hit ${hit.endpoint}`);
  * });
+ *
+ * const handler = nodeHttpHandler({ domain: "example.com" }, { emitter });
  *
  * createServer((req, res) => {
  *   if (!handler(req, res)) {
@@ -45,7 +49,10 @@ function resolveConfig(
  * }).listen(8080);
  * ```
  */
-export function nodeHttpHandler(config?: Partial<SiteConfig>) {
+export function nodeHttpHandler(
+	config?: Partial<SiteConfig>,
+	options?: { emitter?: HoneypotEmitter },
+) {
 	return (req: IncomingMessage, res: ServerResponse): boolean => {
 		const endpoint = req.url?.split("?")[0] || "/";
 		const detected = detectDomain({
@@ -57,6 +64,20 @@ export function nodeHttpHandler(config?: Partial<SiteConfig>) {
 
 		const response = getResponse(cfg, endpoint);
 		if (!response) return false;
+
+		// Emit hit event
+		options?.emitter?.emit("hit", {
+			endpoint,
+			ip:
+				(req.headers["cf-connecting-ip"] as string) ||
+				(req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+				(req.headers["x-real-ip"] as string),
+			userAgent: req.headers["user-agent"],
+			referer: req.headers.referer,
+			url: req.url || endpoint,
+			timestamp: new Date().toISOString(),
+			method: req.method || "GET",
+		});
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {

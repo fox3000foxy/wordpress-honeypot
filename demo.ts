@@ -1,8 +1,15 @@
 import express from "express";
 import { expressMiddleware } from "./src/adapters/express.js";
+import { HoneypotEmitter } from "./src/emitter.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
+
+const emitter = new HoneypotEmitter();
+emitter.on("hit", (hit) => {
+  const ts = hit.timestamp.slice(11, 19);
+  console.log(`[${ts}] ${hit.method} ${hit.endpoint} <- ${hit.ip ?? "unknown"} (${hit.userAgent ?? "no UA"})`);
+});
 
 app.use(expressMiddleware({
   domain: process.env.HONEYPOT_DOMAIN ?? "localhost:3000",
@@ -14,7 +21,7 @@ app.use(expressMiddleware({
   phpVersion: process.env.HONEYPOT_PHP_VERSION ?? "7.4.33",
   serverSoftware: process.env.HONEYPOT_SERVER_SOFTWARE ?? "Apache/2.4.51 (Debian)",
   themeName: process.env.HONEYPOT_THEME_NAME ?? "fox3k",
-}));
+}, { emitter }));
 
 app.listen(PORT, () => {
   console.log(`WordPress honeypot listening on http://localhost:${PORT}`);

@@ -1,4 +1,5 @@
 import type { SiteConfig } from "../types.js";
+import type { HoneypotEmitter } from "../emitter.js";
 import {
 	getResponse,
 	getPhpHeaders,
@@ -23,23 +24,29 @@ function resolveConfig(
  * All other requests are passed through to later routes/middleware.
  *
  * @param config - Partial site configuration (domain auto-detected if missing)
+ * @param options - Optional emitter for logging honeypot hits
  * @returns Koa middleware function
  *
  * @example
  * ```ts
  * import Koa from "koa";
  * import { koaMiddleware } from "wordpress-honeypot/koa";
+ * import { HoneypotEmitter } from "wordpress-honeypot";
+ *
+ * const emitter = new HoneypotEmitter();
+ * emitter.on("hit", (hit) => {
+ *   console.log(`[HONEYPOT] ${hit.ip} hit ${hit.endpoint}`);
+ * });
  *
  * const app = new Koa();
- * app.use(koaMiddleware({
- *   domain: "example.com",
- *   siteName: "my-blog",
- *   dbName: "wp_production",
- * }));
+ * app.use(koaMiddleware({ domain: "example.com" }, { emitter }));
  * app.listen(8080);
  * ```
  */
-export function koaMiddleware(config?: Partial<SiteConfig>) {
+export function koaMiddleware(
+	config?: Partial<SiteConfig>,
+	options?: { emitter?: HoneypotEmitter },
+) {
 	return async (ctx: any, next: any) => {
 		const endpoint = ctx.path;
 		const detected = detectDomain({ headers: ctx.request.headers });
@@ -53,6 +60,20 @@ export function koaMiddleware(config?: Partial<SiteConfig>) {
 		if (!response) {
 			return next();
 		}
+
+		// Emit hit event
+		options?.emitter?.emit("hit", {
+			endpoint,
+			ip:
+				ctx.request.headers["cf-connecting-ip"] ||
+				ctx.request.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+				ctx.request.headers["x-real-ip"],
+			userAgent: ctx.request.headers["user-agent"],
+			referer: ctx.request.headers.referer,
+			url: ctx.request.url,
+			timestamp: new Date().toISOString(),
+			method: ctx.method || "GET",
+		});
 
 		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
 		for (const [key, value] of Object.entries(headers)) {
