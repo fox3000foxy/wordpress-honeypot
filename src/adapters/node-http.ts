@@ -1,12 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { SiteConfig } from "../types.js";
-import type { HoneypotEmitter } from "../emitter.js";
 import {
-	getResponse,
-	getPhpHeaders,
-	detectDomain,
 	classifySpecific,
+	detectDomain,
+	getPhpHeaders,
+	getResponse,
 } from "../core.js";
+import type { HoneypotEmitter } from "../emitter.js";
+import type { SiteConfig } from "../types.js";
 
 function resolveConfig(
 	config: Partial<SiteConfig> | undefined,

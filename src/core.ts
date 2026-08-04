@@ -1,13 +1,13 @@
+import { injectRobotsTxt, injectSitemap } from "./inject.js";
+import { loadWww } from "./static.js";
 import type {
-	SiteConfig,
 	Gen,
-	RouteRule,
-	Matcher,
 	GenFactory,
 	HoneypotResponse,
+	Matcher,
+	RouteRule,
+	SiteConfig,
 } from "./types.js";
-import { loadWww } from "./static.js";
-import { injectRobotsTxt, injectSitemap } from "./inject.js";
 
 function ts(): string {
 	return new Date().toISOString().replace(/\.\d{3}/, "");

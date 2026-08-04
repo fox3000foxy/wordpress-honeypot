@@ -17,14 +17,6 @@ function resolveConfig(
 	};
 }
 
-function extractIp(req: any): string | undefined {
-	return (
-		req.headers?.["cf-connecting-ip"] ||
-		req.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
-		req.headers?.["x-real-ip"]
-	);
-}
-
 /**
  * Express middleware that serves realistic WordPress honeypot responses.
  *
@@ -76,7 +68,10 @@ export function expressMiddleware(
 		// Emit hit event
 		options?.emitter?.emit("hit", {
 			endpoint,
-			ip: extractIp(req),
+			ip:
+				req.headers?.["cf-connecting-ip"] ||
+				req.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
+				req.headers?.["x-real-ip"],
 			userAgent: req.headers?.["user-agent"],
 			referer: req.headers?.referer,
 			url: req.originalUrl || req.url,

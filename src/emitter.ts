@@ -38,8 +38,8 @@ export interface HoneypotEvents {
  * import { HoneypotEmitter } from "wordpress-honeypot";
  *
  * const emitter = new HoneypotEmitter();
- * emitter.on("hit", (details) => {
- *   console.log(`Scanner hit ${details.endpoint} from ${details.ip}`);
+ * emitter.on("hit", (hit) => {
+ *   console.log(`Scanner hit ${hit.endpoint} from ${hit.ip}`);
  * });
  *
  * app.use(expressMiddleware({ domain: "example.com" }, { emitter }));
@@ -74,17 +74,4 @@ export class HoneypotEmitter extends EventEmitter<HoneypotEvents> {
 		}
 		return total;
 	}
-}
-
-/**
- * Extract client IP from request headers.
- */
-export function extractIp(
-	headers: Record<string, string | undefined>,
-): string | undefined {
-	return (
-		headers["cf-connecting-ip"] ||
-		headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-		headers["x-real-ip"]
-	);
 }

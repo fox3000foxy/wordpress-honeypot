@@ -19,14 +19,6 @@
 export type {
 	/** Site configuration for the honeypot. */
 	SiteConfig,
-	/** Generator function type. */
-	Gen,
-	/** Route rule for pattern matching. */
-	RouteRule,
-	/** Pattern matcher type. */
-	Matcher,
-	/** Generator factory type. */
-	GenFactory,
 	/** HTTP response from the honeypot. */
 	HoneypotResponse,
 } from "./types.js";
@@ -71,14 +63,6 @@ export {
 	 * @returns Generator function if specific, `null` if catchall
 	 */
 	classifySpecific,
-	/** Internal: Route classifier function. */
-	classify,
-	/** Internal: Pattern matching utility. */
-	matchesEndpoint,
-	/** Internal: All route rules. */
-	ROUTES,
-	/** Internal: Specific endpoint generators. */
-	SPECIFIC_ROUTES,
 	/**
 	 * List of all supported honeypot endpoints.
 	 * Use for coverage verification or monitoring.
@@ -103,5 +87,5 @@ export { MockupPaths } from "./files.generated.js";
 export type { MockupPath } from "./files.generated.js";
 
 // Emitter
-export { HoneypotEmitter, extractIp } from "./emitter.js";
-export type { HoneypotHit, HoneypotEvents } from "./emitter.js";
+export { HoneypotEmitter } from "./emitter.js";
+export type { HoneypotEvents, HoneypotHit } from "./emitter.js";
