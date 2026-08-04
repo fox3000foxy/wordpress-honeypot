@@ -44,6 +44,8 @@ app.listen(8080);
 
 ## Configuration
 
+`SiteConfig` controls the **fake values** injected into honeypot templates. It has no effect on your actual server, database, or infrastructure — it only determines what appears in the deceptive responses served to scanners.
+
 ```ts
 import { expressMiddleware } from "wordpress-honeypot/express";
 
@@ -65,6 +67,8 @@ app.use(expressMiddleware({
 ```
 
 All fields are optional except `domain` (auto-detected from `Host` / `X-Forwarded-Host` if omitted).
+
+> **Note**: `SiteConfig` does not interact with your actual server or infrastructure. It only determines the values used in template replacements — the fake content served to scanners. Your real database, SSH keys, and config files are never touched.
 
 ### SiteConfig Reference
 
