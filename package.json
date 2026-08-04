@@ -1,6 +1,6 @@
 {
 	"name": "wordpress-honeypot",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"description": "Realistic WordPress honeypot for trapping scanners, bots, and AI agents",
 	"repository": {
 		"type": "git",
