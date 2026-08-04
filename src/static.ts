@@ -1,19 +1,13 @@
-import { readFileSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join, resolve } from "node:path";
+import { FILES } from "./files.generated.js";
 import type { SiteConfig } from "./types.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const _WWW_DIR = join(dirname(__filename), "..", "www");
 
 const cache = new Map<string, string>();
 
 function loadRaw(rel: string): string | null {
-	const key = resolve(rel);
-	if (cache.has(key)) return cache.get(key)!;
-	if (!existsSync(key)) return null;
-	const content = readFileSync(key, "utf-8");
-	cache.set(key, content);
+	if (cache.has(rel)) return cache.get(rel)!;
+	const content = FILES[rel];
+	if (content === undefined) return null;
+	cache.set(rel, content);
 	return content;
 }
 
@@ -57,12 +51,16 @@ function fill(tpl: string, c: SiteConfig): string {
 	);
 }
 
+function normalize(rel: string): string {
+	return rel.startsWith("/") ? rel : `/${rel}`;
+}
+
 /**
  * Load a file from www/ and apply SiteConfig replacements.
  * Returns null if the file doesn't exist.
  */
 export function loadWww(rel: string, config: SiteConfig): string | null {
-	const raw = loadRaw(rel);
+	const raw = loadRaw(normalize(rel));
 	if (raw === null) return null;
 	return fill(raw, config);
 }
@@ -71,5 +69,5 @@ export function loadWww(rel: string, config: SiteConfig): string | null {
  * Check if a file exists in www/.
  */
 export function wwwExists(rel: string): boolean {
-	return loadRaw(rel) !== null;
+	return loadRaw(normalize(rel)) !== null;
 }
