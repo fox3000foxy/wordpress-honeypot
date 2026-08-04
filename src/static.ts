@@ -1,14 +1,19 @@
 import { FILES } from "./files.generated.js";
 import type { SiteConfig } from "./types.js";
 
-const cache = new Map<string, string>();
+const rawCache = new Map<string, string>();
+const filledCache = new Map<string, string>();
 
 function loadRaw(rel: string): string | null {
-	if (cache.has(rel)) return cache.get(rel)!;
+	if (rawCache.has(rel)) return rawCache.get(rel)!;
 	const content = FILES[rel];
 	if (content === undefined) return null;
-	cache.set(rel, content);
+	rawCache.set(rel, content);
 	return content;
+}
+
+function cacheKey(rel: string, c: SiteConfig): string {
+	return `${rel}|${c.domain}|${c.siteName}|${c.dbName}|${c.dbUser}|${c.dbPassword}|${c.adminEmail}|${c.vpsIp}|${c.sshPort}|${c.webroot}|${c.themeName}`;
 }
 
 function fill(tpl: string, c: SiteConfig): string {
@@ -18,7 +23,6 @@ function fill(tpl: string, c: SiteConfig): string {
 	const dbUser = c.dbUser ?? "wp_user";
 	const dbPassword = c.dbPassword ?? "change_me";
 	const adminEmail = c.adminEmail ?? `admin@${domain}`;
-	const _phpVersion = c.phpVersion ?? "7.4.33";
 	const vpsIp = c.vpsIp ?? "0.0.0.0";
 	const sshPort = c.sshPort ?? 22;
 	const themeName = c.themeName ?? "theme";
@@ -57,15 +61,25 @@ function normalize(rel: string): string {
 
 /**
  * Load a file from www/ and apply SiteConfig replacements.
+ * Results are cached by path + config key.
  *
  * @param rel - Relative path within www/ (e.g. `MockupPaths._wp_login_php` or `"/wp-login.php"`)
  * @param config - Site configuration used for value substitution
  * @returns Rendered content string, or `null` if the file doesn't exist
  */
 export function loadWww(rel: string, config: SiteConfig): string | null {
-	const raw = loadRaw(normalize(rel));
+	const normalized = normalize(rel);
+	const key = cacheKey(normalized, config);
+
+	const cached = filledCache.get(key);
+	if (cached !== undefined) return cached;
+
+	const raw = loadRaw(normalized);
 	if (raw === null) return null;
-	return fill(raw, config);
+
+	const filled = fill(raw, config);
+	filledCache.set(key, filled);
+	return filled;
 }
 
 /**

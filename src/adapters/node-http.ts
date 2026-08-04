@@ -1,10 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import {
-	classifySpecific,
-	detectDomain,
-	getPhpHeaders,
-	getResponse,
-} from "../core.js";
+import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -59,8 +54,6 @@ export function nodeHttpHandler(
 			headers: req.headers as Record<string, string>,
 		});
 		const cfg = resolveConfig(config, detected);
-
-		if (!classifySpecific(cfg, endpoint)) return false;
 
 		const response = getResponse(cfg, endpoint);
 		if (!response) return false;

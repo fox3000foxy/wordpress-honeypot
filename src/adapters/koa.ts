@@ -1,9 +1,4 @@
-import {
-	classifySpecific,
-	detectDomain,
-	getPhpHeaders,
-	getResponse,
-} from "../core.js";
+import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -51,10 +46,6 @@ export function koaMiddleware(
 		const endpoint = ctx.path;
 		const detected = detectDomain({ headers: ctx.request.headers });
 		const cfg = resolveConfig(config, detected);
-
-		if (!classifySpecific(cfg, endpoint)) {
-			return next();
-		}
 
 		const response = getResponse(cfg, endpoint);
 		if (!response) {

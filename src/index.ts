@@ -56,14 +56,6 @@ export {
 	 */
 	detectDomain,
 	/**
-	 * Check if an endpoint has a specific generator (not catchall).
-	 *
-	 * @param config - Site configuration
-	 * @param endpoint - Request path
-	 * @returns Generator function if specific, `null` if catchall
-	 */
-	classifySpecific,
-	/**
 	 * List of all supported honeypot endpoints.
 	 * Use for coverage verification or monitoring.
 	 */

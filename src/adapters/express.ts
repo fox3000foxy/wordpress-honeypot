@@ -1,9 +1,4 @@
-import {
-	classifySpecific,
-	detectDomain,
-	getPhpHeaders,
-	getResponse,
-} from "../core.js";
+import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -54,11 +49,6 @@ export function expressMiddleware(
 		const endpoint = req.path || req.url;
 		const detected = detectDomain(req);
 		const cfg = resolveConfig(config, detected);
-
-		// Only intercept known honeypot paths — pass everything else through
-		if (!classifySpecific(cfg, endpoint)) {
-			return next();
-		}
 
 		const response = getResponse(cfg, endpoint);
 		if (!response) {

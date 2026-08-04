@@ -1,9 +1,4 @@
-import {
-	classifySpecific,
-	detectDomain,
-	getPhpHeaders,
-	getResponse,
-} from "../core.js";
+import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -55,8 +50,6 @@ export function fastifyPlugin(
 		const endpoint = req.url.split("?")[0];
 		const detected = detectDomain(req);
 		const cfg = resolveConfig(config, detected);
-
-		if (!classifySpecific(cfg, endpoint)) return;
 
 		const response = getResponse(cfg, endpoint);
 		if (!response) return;
