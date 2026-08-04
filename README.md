@@ -83,6 +83,21 @@ See `ALL_ENDPOINTS` for the full list.
 3. If yes → loads the corresponding file from `www/`, applies `SiteConfig` replacements, returns it with realistic PHP headers
 4. If no → calls `next()` and lets your real routes handle it
 
+## Cloudflare Workers
+
+Works out of the box on Cloudflare Workers — no `node:fs` required. All honeypot files are embedded at build time.
+
+See [`worker-demo/`](worker-demo/) for a ready-to-deploy example using Hono:
+
+```ts
+import { Hono } from "hono";
+import { honoMiddleware } from "wordpress-honeypot/hono";
+
+const app = new Hono();
+app.use("*", honoMiddleware({ domain: "example.com" }));
+export default app;
+```
+
 ## License
 
 MIT
