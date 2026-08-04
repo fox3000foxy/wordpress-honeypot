@@ -1,12 +1,20 @@
-import type { IncomingMessage, ServerResponse } from "http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
+import {
+	getResponse,
+	getPhpHeaders,
+	detectDomain,
+	classifySpecific,
+} from "../core.js";
 
-function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
-  return {
-    domain: config?.domain || reqHost || "localhost",
-    ...config,
-  };
+function resolveConfig(
+	config: Partial<SiteConfig> | undefined,
+	reqHost?: string,
+): SiteConfig {
+	return {
+		domain: config?.domain || reqHost || "localhost",
+		...config,
+	};
 }
 
 /**
@@ -38,23 +46,25 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
  * ```
  */
 export function nodeHttpHandler(config?: Partial<SiteConfig>) {
-  return (req: IncomingMessage, res: ServerResponse): boolean => {
-    const endpoint = req.url?.split("?")[0] || "/";
-    const detected = detectDomain({ headers: req.headers as Record<string, string> });
-    const cfg = resolveConfig(config, detected);
+	return (req: IncomingMessage, res: ServerResponse): boolean => {
+		const endpoint = req.url?.split("?")[0] || "/";
+		const detected = detectDomain({
+			headers: req.headers as Record<string, string>,
+		});
+		const cfg = resolveConfig(config, detected);
 
-    if (!classifySpecific(cfg, endpoint)) return false;
+		if (!classifySpecific(cfg, endpoint)) return false;
 
-    const response = getResponse(cfg, endpoint);
-    if (!response) return false;
+		const response = getResponse(cfg, endpoint);
+		if (!response) return false;
 
-    const headers = { ...response.headers, ...getPhpHeaders(cfg) };
-    for (const [key, value] of Object.entries(headers)) {
-      res.setHeader(key, value);
-    }
+		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
+		for (const [key, value] of Object.entries(headers)) {
+			res.setHeader(key, value);
+		}
 
-    res.writeHead(response.status);
-    res.end(response.body);
-    return true;
-  };
+		res.writeHead(response.status);
+		res.end(response.body);
+		return true;
+	};
 }

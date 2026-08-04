@@ -1,11 +1,19 @@
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
+import {
+	getResponse,
+	getPhpHeaders,
+	detectDomain,
+	classifySpecific,
+} from "../core.js";
 
-function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
-  return {
-    domain: config?.domain || reqHost || "localhost",
-    ...config,
-  };
+function resolveConfig(
+	config: Partial<SiteConfig> | undefined,
+	reqHost?: string,
+): SiteConfig {
+	return {
+		domain: config?.domain || reqHost || "localhost",
+		...config,
+	};
 }
 
 /**
@@ -31,25 +39,25 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
  * ```
  */
 export function honoMiddleware(config?: Partial<SiteConfig>) {
-  return async (c: any, next: any) => {
-    const endpoint = c.req.path;
-    const detected = detectDomain({ headers: c.req.raw.headers });
-    const cfg = resolveConfig(config, detected);
+	return async (c: any, next: any) => {
+		const endpoint = c.req.path;
+		const detected = detectDomain({ headers: c.req.raw.headers });
+		const cfg = resolveConfig(config, detected);
 
-    if (!classifySpecific(cfg, endpoint)) {
-      return next();
-    }
+		if (!classifySpecific(cfg, endpoint)) {
+			return next();
+		}
 
-    const response = getResponse(cfg, endpoint);
-    if (!response) {
-      return next();
-    }
+		const response = getResponse(cfg, endpoint);
+		if (!response) {
+			return next();
+		}
 
-    const headers = { ...response.headers, ...getPhpHeaders(cfg) };
-    for (const [key, value] of Object.entries(headers)) {
-      c.header(key, value);
-    }
+		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
+		for (const [key, value] of Object.entries(headers)) {
+			c.header(key, value);
+		}
 
-    return c.body(response.body, response.status as any);
-  };
+		return c.body(response.body, response.status as any);
+	};
 }

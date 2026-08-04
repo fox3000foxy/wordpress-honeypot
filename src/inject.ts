@@ -77,7 +77,10 @@ const COMMENTED_SITEMAP_PATHS = [
 ];
 
 function escapeXml(text: string): string {
-	return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
 }
 
 /**
@@ -103,10 +106,10 @@ export function injectSitemap(content: string, config: SiteConfig): string {
 	const site = `${protocol}://${config.domain}`;
 	const entries = DECOY_SITEMAP_PATHS.map(
 		(url) =>
-			`<url><loc>${escapeXml(site + url)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`
+			`<url><loc>${escapeXml(site + url)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`,
 	).join("");
 	const commented = COMMENTED_SITEMAP_PATHS.map(
-		(url) => `<!-- <url><loc>${escapeXml(site + url)}</loc></url> -->`
+		(url) => `<!-- <url><loc>${escapeXml(site + url)}</loc></url> -->`,
 	).join("\n");
 	const closing = "</urlset>";
 	if (!content.includes(closing)) return content;

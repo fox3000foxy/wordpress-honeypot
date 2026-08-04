@@ -1,11 +1,19 @@
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
+import {
+	getResponse,
+	getPhpHeaders,
+	detectDomain,
+	classifySpecific,
+} from "../core.js";
 
-function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
-  return {
-    domain: config?.domain || reqHost || "localhost",
-    ...config,
-  };
+function resolveConfig(
+	config: Partial<SiteConfig> | undefined,
+	reqHost?: string,
+): SiteConfig {
+	return {
+		domain: config?.domain || reqHost || "localhost",
+		...config,
+	};
 }
 
 /**
@@ -43,26 +51,26 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
  * ```
  */
 export function expressMiddleware(config?: Partial<SiteConfig>) {
-  return (req: any, res: any, next: any) => {
-    const endpoint = req.path || req.url;
-    const detected = detectDomain(req);
-    const cfg = resolveConfig(config, detected);
+	return (req: any, res: any, next: any) => {
+		const endpoint = req.path || req.url;
+		const detected = detectDomain(req);
+		const cfg = resolveConfig(config, detected);
 
-    // Only intercept known honeypot paths — pass everything else through
-    if (!classifySpecific(cfg, endpoint)) {
-      return next();
-    }
+		// Only intercept known honeypot paths — pass everything else through
+		if (!classifySpecific(cfg, endpoint)) {
+			return next();
+		}
 
-    const response = getResponse(cfg, endpoint);
-    if (!response) {
-      return next();
-    }
+		const response = getResponse(cfg, endpoint);
+		if (!response) {
+			return next();
+		}
 
-    const headers = { ...response.headers, ...getPhpHeaders(cfg) };
-    for (const [key, value] of Object.entries(headers)) {
-      res.setHeader(key, value);
-    }
+		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
+		for (const [key, value] of Object.entries(headers)) {
+			res.setHeader(key, value);
+		}
 
-    res.status(response.status).send(response.body);
-  };
+		res.status(response.status).send(response.body);
+	};
 }

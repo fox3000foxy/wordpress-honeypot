@@ -1,11 +1,19 @@
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
+import {
+	getResponse,
+	getPhpHeaders,
+	detectDomain,
+	classifySpecific,
+} from "../core.js";
 
-function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
-  return {
-    domain: config?.domain || reqHost || "localhost",
-    ...config,
-  };
+function resolveConfig(
+	config: Partial<SiteConfig> | undefined,
+	reqHost?: string,
+): SiteConfig {
+	return {
+		domain: config?.domain || reqHost || "localhost",
+		...config,
+	};
 }
 
 /**
@@ -32,26 +40,26 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
  * ```
  */
 export function koaMiddleware(config?: Partial<SiteConfig>) {
-  return async (ctx: any, next: any) => {
-    const endpoint = ctx.path;
-    const detected = detectDomain({ headers: ctx.request.headers });
-    const cfg = resolveConfig(config, detected);
+	return async (ctx: any, next: any) => {
+		const endpoint = ctx.path;
+		const detected = detectDomain({ headers: ctx.request.headers });
+		const cfg = resolveConfig(config, detected);
 
-    if (!classifySpecific(cfg, endpoint)) {
-      return next();
-    }
+		if (!classifySpecific(cfg, endpoint)) {
+			return next();
+		}
 
-    const response = getResponse(cfg, endpoint);
-    if (!response) {
-      return next();
-    }
+		const response = getResponse(cfg, endpoint);
+		if (!response) {
+			return next();
+		}
 
-    const headers = { ...response.headers, ...getPhpHeaders(cfg) };
-    for (const [key, value] of Object.entries(headers)) {
-      ctx.set(key, value);
-    }
+		const headers = { ...response.headers, ...getPhpHeaders(cfg) };
+		for (const [key, value] of Object.entries(headers)) {
+			ctx.set(key, value);
+		}
 
-    ctx.status = response.status;
-    ctx.body = response.body;
-  };
+		ctx.status = response.status;
+		ctx.body = response.body;
+	};
 }
