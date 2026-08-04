@@ -1,5 +1,5 @@
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain } from "../core.js";
+import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
 
 function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
   return {
@@ -10,6 +10,10 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
 
 /**
  * Express middleware that serves realistic WordPress honeypot responses.
+ *
+ * Only intercepts known honeypot endpoints (see `ALL_ENDPOINTS`).
+ * All other requests are passed to the next middleware/handler via `next()`,
+ * so routes defined after `app.use(honeypot)` are never shadowed.
  *
  * Auto-detects domain from `Host` / `X-Forwarded-Host` headers if `config.domain` is omitted.
  *
@@ -43,8 +47,13 @@ export function expressMiddleware(config?: Partial<SiteConfig>) {
     const endpoint = req.path || req.url;
     const detected = detectDomain(req);
     const cfg = resolveConfig(config, detected);
-    const response = getResponse(cfg, endpoint);
 
+    // Only intercept known honeypot paths — pass everything else through
+    if (!classifySpecific(cfg, endpoint)) {
+      return next();
+    }
+
+    const response = getResponse(cfg, endpoint);
     if (!response) {
       return next();
     }

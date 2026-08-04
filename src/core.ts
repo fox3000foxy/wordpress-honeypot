@@ -297,19 +297,31 @@ export function detectDomain(req: { headers?: Record<string, string | string[] |
   return h.replace(/:\d+$/, "").replace(/^www\./, "") || undefined;
 }
 
+// Build a fast lookup Set from FILE_MAP + SPECIFIC_ROUTES + exact ALL_ENDPOINTS.
+// Used by classifySpecific to avoid intercepting non-honeypot routes.
+const HONEYPOT_PATHS = new Set<string>([
+  ...Object.keys(FILE_MAP),
+  ...Object.keys(SPECIFIC_ROUTES),
+  ...ROUTES.filter((r) => typeof r.match === "string").map((r) => r.match as string),
+]);
+const HONEYPOT_PATTERNS = ROUTES.filter((r) => r.match instanceof RegExp).map((r) => r.match as RegExp);
+
 /**
- * Check if an endpoint has a specific generator (not a catchall fallback).
+ * Check if an endpoint is a known honeypot path.
  *
- * @param config - Site configuration (unused, kept for API consistency)
+ * Returns the generator if the endpoint is a specific honeypot route,
+ * `null` if it should be handled by other middleware/routes.
+ *
+ * @param _config - Site configuration (unused, kept for API consistency)
  * @param endpoint - Request path to check
- * @returns The generator function if specific, `null` if catchall
+ * @returns The generator function if it's a honeypot path, `null` otherwise
  */
-export function classifySpecific(config: SiteConfig, endpoint: string): Gen | null {
-  const gen = classify(endpoint);
-  if (!gen) return null;
-  const str = gen.toString();
-  if (str.includes("genCatchall")) return null;
-  return gen;
+export function classifySpecific(_config: SiteConfig, endpoint: string): Gen | null {
+  if (HONEYPOT_PATHS.has(endpoint)) return classify(endpoint);
+  for (const pat of HONEYPOT_PATTERNS) {
+    if (pat.test(endpoint)) return classify(endpoint);
+  }
+  return null;
 }
 
 export { classify, matchesEndpoint, ROUTES, SPECIFIC_ROUTES };

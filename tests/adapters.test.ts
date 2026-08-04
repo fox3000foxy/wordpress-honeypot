@@ -41,7 +41,7 @@ describe("expressMiddleware", () => {
     expect(res._headers["X-Powered-By"]).toContain("PHP");
   });
 
-  it("calls next for unknown routes (catchall still responds)", () => {
+  it("calls next for unknown routes (does not intercept)", () => {
     const mw = expressMiddleware(config);
     const req = mockExpressReq("/something-unknown");
     const res = mockExpressRes();
@@ -49,10 +49,8 @@ describe("expressMiddleware", () => {
 
     mw(req, res, next);
 
-    // catchall always responds
-    expect(next).not.toHaveBeenCalled();
-    expect(res._status).toBe(200);
-    expect(res._body).toContain("404");
+    expect(next).toHaveBeenCalled();
+    expect(res._body).toBe("");
   });
 
   it("auto-detects domain from Host header", () => {

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "http";
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain } from "../core.js";
+import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
 
 function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
   return {
@@ -12,7 +12,8 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
 /**
  * Node.js `http.createServer` handler for the honeypot.
  *
- * Returns `true` if the request was handled (response sent), `false` if no route matched.
+ * Only intercepts known honeypot endpoints (see `ALL_ENDPOINTS`).
+ * Returns `true` if the request was handled (response sent), `false` if no honeypot route matched.
  *
  * @param config - Partial site configuration (domain auto-detected if missing)
  * @returns Handler function that returns whether the request was handled
@@ -41,8 +42,10 @@ export function nodeHttpHandler(config?: Partial<SiteConfig>) {
     const endpoint = req.url?.split("?")[0] || "/";
     const detected = detectDomain({ headers: req.headers as Record<string, string> });
     const cfg = resolveConfig(config, detected);
-    const response = getResponse(cfg, endpoint);
 
+    if (!classifySpecific(cfg, endpoint)) return false;
+
+    const response = getResponse(cfg, endpoint);
     if (!response) return false;
 
     const headers = { ...response.headers, ...getPhpHeaders(cfg) };

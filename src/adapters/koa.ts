@@ -1,5 +1,5 @@
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain } from "../core.js";
+import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
 
 function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
   return {
@@ -10,6 +10,9 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
 
 /**
  * Koa middleware that serves realistic WordPress honeypot responses.
+ *
+ * Only intercepts known honeypot endpoints (see `ALL_ENDPOINTS`).
+ * All other requests are passed through to later routes/middleware.
  *
  * @param config - Partial site configuration (domain auto-detected if missing)
  * @returns Koa middleware function
@@ -33,8 +36,12 @@ export function koaMiddleware(config?: Partial<SiteConfig>) {
     const endpoint = ctx.path;
     const detected = detectDomain({ headers: ctx.request.headers });
     const cfg = resolveConfig(config, detected);
-    const response = getResponse(cfg, endpoint);
 
+    if (!classifySpecific(cfg, endpoint)) {
+      return next();
+    }
+
+    const response = getResponse(cfg, endpoint);
     if (!response) {
       return next();
     }

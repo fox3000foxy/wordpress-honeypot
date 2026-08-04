@@ -1,5 +1,5 @@
 import type { SiteConfig } from "../types.js";
-import { getResponse, getPhpHeaders, detectDomain } from "../core.js";
+import { getResponse, getPhpHeaders, detectDomain, classifySpecific } from "../core.js";
 
 function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string): SiteConfig {
   return {
@@ -10,6 +10,9 @@ function resolveConfig(config: Partial<SiteConfig> | undefined, reqHost?: string
 
 /**
  * Hono middleware that serves realistic WordPress honeypot responses.
+ *
+ * Only intercepts known honeypot endpoints (see `ALL_ENDPOINTS`).
+ * All other requests are passed through to later routes/middleware.
  *
  * @param config - Partial site configuration (domain auto-detected if missing)
  * @returns Hono middleware function
@@ -32,8 +35,12 @@ export function honoMiddleware(config?: Partial<SiteConfig>) {
     const endpoint = c.req.path;
     const detected = detectDomain({ headers: c.req.raw.headers });
     const cfg = resolveConfig(config, detected);
-    const response = getResponse(cfg, endpoint);
 
+    if (!classifySpecific(cfg, endpoint)) {
+      return next();
+    }
+
+    const response = getResponse(cfg, endpoint);
     if (!response) {
       return next();
     }
