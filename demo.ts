@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT ?? 3000;
 
 app.use(expressMiddleware({
-  domain: process.env.HONEYPOT_DOMAIN ?? "fox3000foxy.com",
+  domain: process.env.HONEYPOT_DOMAIN ?? "localhost:3000",
   siteName: process.env.HONEYPOT_SITE_NAME ?? "Fox3000foxy",
   dbName: process.env.HONEYPOT_DB_NAME ?? "wordpress",
   dbUser: process.env.HONEYPOT_DB_USER ?? "wp_user",
@@ -18,7 +18,7 @@ app.use(expressMiddleware({
 
 app.listen(PORT, () => {
   console.log(`WordPress honeypot listening on http://localhost:${PORT}`);
-  console.log(`Domain: ${process.env.HONEYPOT_DOMAIN ?? "fox3000foxy.com"}`);
+  console.log(`Domain: ${process.env.HONEYPOT_DOMAIN ?? "localhost:3000"}`);
   console.log("");
   console.log("Try these endpoints:");
   console.log(`  GET http://localhost:${PORT}/`);

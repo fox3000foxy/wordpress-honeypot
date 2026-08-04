@@ -1,5 +1,6 @@
 import type { SiteConfig, Gen, RouteRule, Matcher, GenFactory, HoneypotResponse } from "./types.js";
 import { loadWww } from "./static.js";
+import { injectRobotsTxt, injectSitemap } from "./inject.js";
 
 function ts(): string {
   return new Date().toISOString().replace(/\.\d{3}/, "");
@@ -81,11 +82,14 @@ const FILE_MAP: Record<string, string> = {
   "/phpmyadmin/": "phpmyadmin/index.php",
   "/phpmyadmin/index.php": "phpmyadmin/index.php",
   "/wp-admin/internal-sitemap.xml": "wp-admin/internal-sitemap.xml",
+  "/robots.txt": "robots.txt",
+  "/sitemap-0.xml": "sitemap-0.xml",
 };
 
 // Wildcard patterns: endpoint regex → www/ file path template
 const WILDCARD_FILES: Array<{ pattern: RegExp; toFile: (match: RegExpMatchArray) => string }> = [
   { pattern: /^\/etc\/apache2\/sites-available\/(.+)$/, toFile: (m) => `etc/apache2/sites-available/${m[1]}` },
+  { pattern: /^\/wp-content\/uploads\/(.+_backup\.sql)$/, toFile: (m) => `wp-content/uploads/${m[1]}` },
   { pattern: /^\/home\/[^/]+\/\.bash_history$/, toFile: () => "home/fox3000foxy/.bash_history" },
   { pattern: /^\/\.ssh\/(id_rsa|id_ecdsa|id_ed25519)$/, toFile: () => ".my.cnf" }, // fallback
 ];
@@ -190,6 +194,18 @@ function classify(endpoint: string): Gen | null {
   // Try static file first (exact match)
   const file = FILE_MAP[endpoint];
   if (file) {
+    if (endpoint === "/robots.txt") {
+      return (c) => {
+        const raw = loadWww(file, c);
+        return raw ? injectRobotsTxt(raw) : genCatchall(c, endpoint);
+      };
+    }
+    if (endpoint === "/sitemap-0.xml") {
+      return (c) => {
+        const raw = loadWww(file, c);
+        return raw ? injectSitemap(raw, c) : genCatchall(c, endpoint);
+      };
+    }
     return (c) => loadWww(file, c) ?? genCatchall(c, endpoint);
   }
 
@@ -367,6 +383,8 @@ export const ALL_ENDPOINTS = [
   "/support/index",
   "/unSecurity/app/config",
   "/.htaccess",
+  "/robots.txt",
+  "/sitemap-0.xml",
   "/wp-json/wp/v2/users/",
   "/wp-content/plugins/wp-updater-guru/",
   "/wp-content/themes/fox3k/style.css",

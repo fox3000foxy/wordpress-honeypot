@@ -96,3 +96,16 @@ export {
    */
   ALL_ENDPOINTS,
 } from "./core.js";
+
+// Injection
+export {
+  /**
+   * Inject honeypot Disallow rules into robots.txt content.
+   */
+  injectRobotsTxt,
+
+  /**
+   * Inject decoy URLs into sitemap-0.xml content.
+   */
+  injectSitemap,
+} from "./inject.js";
