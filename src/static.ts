@@ -36,6 +36,7 @@ function fill(tpl: string, c: SiteConfig): string {
     .replaceAll("127.0.0.1:8899", domain)
     .replaceAll("Fox3000foxy", siteName)
     .replaceAll("fox3000foxy.com", domain)
+    .replaceAll("FOX3K_DOMAIN", domain)
     .replaceAll("fox@fox3000foxy.com", adminEmail)
     // DB credentials
     .replaceAll("wp_s3cur3_2026", dbPassword)

@@ -27,8 +27,9 @@ function html(title: string, body: string): string {
 // If not, falls through to the next route.
 
 const FILE_MAP: Record<string, string> = {
-  "/": "index.php",
+  "/": "index.html",
   "/index.php": "index.php",
+  "/index.html": "index.html",
   "/wp-login.php": "wp-login.php",
   "/wp-admin/": "wp-login.php",
   "/wp-blog-header.php": "wp-blog-header.php",
