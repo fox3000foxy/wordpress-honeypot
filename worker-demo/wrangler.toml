@@ -1,0 +1,8 @@
+name = "wp-honeypot"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+DOMAIN = "fox3000foxy.com"
+SITE_NAME = "Fox's Blog"
