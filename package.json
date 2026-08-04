@@ -6,34 +6,40 @@
 		"type": "git",
 		"url": "https://github.com/fox3000foxy/wordpress-honeypot"
 	},
-	"main": "dist/index.js",
-	"module": "dist/index.js",
-	"types": "dist/index.d.ts",
+	"main": "dist/cjs/index.js",
+	"module": "dist/esm/index.js",
+	"types": "dist/esm/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"default": "./dist/index.js"
+			"types": "./dist/esm/index.d.ts",
+			"import": "./dist/esm/index.js",
+			"require": "./dist/cjs/index.js",
+			"default": "./dist/esm/index.js"
 		},
 		"./express": {
-			"types": "./dist/adapters/express.d.ts",
-			"import": "./dist/adapters/express.js"
+			"types": "./dist/esm/adapters/express.d.ts",
+			"import": "./dist/esm/adapters/express.js",
+			"require": "./dist/cjs/adapters/express.js"
 		},
 		"./fastify": {
-			"types": "./dist/adapters/fastify.d.ts",
-			"import": "./dist/adapters/fastify.js"
+			"types": "./dist/esm/adapters/fastify.d.ts",
+			"import": "./dist/esm/adapters/fastify.js",
+			"require": "./dist/cjs/adapters/fastify.js"
 		},
 		"./hono": {
-			"types": "./dist/adapters/hono.d.ts",
-			"import": "./dist/adapters/hono.js"
+			"types": "./dist/esm/adapters/hono.d.ts",
+			"import": "./dist/esm/adapters/hono.js",
+			"require": "./dist/cjs/adapters/hono.js"
 		},
 		"./koa": {
-			"types": "./dist/adapters/koa.d.ts",
-			"import": "./dist/adapters/koa.js"
+			"types": "./dist/esm/adapters/koa.d.ts",
+			"import": "./dist/esm/adapters/koa.js",
+			"require": "./dist/cjs/adapters/koa.js"
 		},
 		"./node": {
-			"types": "./dist/adapters/node-http.d.ts",
-			"import": "./dist/adapters/node-http.js"
+			"types": "./dist/esm/adapters/node-http.d.ts",
+			"import": "./dist/esm/adapters/node-http.js",
+			"require": "./dist/cjs/adapters/node-http.js"
 		}
 	},
 	"files": [
@@ -45,7 +51,7 @@
 	"scripts": {
 		"prepack": "npm run build",
 		"build:files": "npx tsx scripts/build-files.ts",
-		"build": "npm run build:files && tsc --project tsconfig.json",
+		"build": "npm run build:files && tsc --project tsconfig.json && node scripts/build-cjs.mjs",
 		"build:watch": "tsc --watch",
 		"typecheck": "tsc --noEmit",
 		"check": "bunx --bun @biomejs/biome check ./src",
@@ -72,6 +78,7 @@
 		"@biomejs/biome": "^2.5.6",
 		"@types/express": "^5.0.6",
 		"@types/node": "^26.1.2",
+		"esbuild": "^0.28.1",
 		"express": "^5.2.1",
 		"tsx": "^4.23.5",
 		"typescript": "^7.0.2",
