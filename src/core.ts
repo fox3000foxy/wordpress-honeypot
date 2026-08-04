@@ -120,7 +120,7 @@ const ROUTES: RouteRule[] = [
   // These are checked first via FILE_MAP before falling through to generators.
 
   // ── SSH / MySQL (no file, generator) ──
-  { match: /id_rsa|id_ecdsa|id_ed25519/, gen: fixed((c) => `-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACBHK9s9vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vA` ) },
+  { match: /id_rsa|id_ecdsa|id_ed25519/, gen: fixed((c) => `-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACBHK9s9vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vA`) },
   { match: /authorized_keys/, gen: fixed((c) => `# Deploy keys\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7vKz... deploy@${c.domain}`) },
 
   // ── WP REST API ──
@@ -190,24 +190,25 @@ const SPECIFIC_ROUTES: Record<string, Gen> = {
 // ─── CLASSIFIER ──────────────────────────────────────────────────────────────
 
 function classify(endpoint: string): Gen | null {
-  if (endpoint in SPECIFIC_ROUTES) return SPECIFIC_ROUTES[endpoint];
+  const specific = SPECIFIC_ROUTES[endpoint];
+  if (specific) return specific;
 
   // Try static file first (exact match)
   const file = FILE_MAP[endpoint];
   if (file) {
     if (endpoint === "/robots.txt") {
       return (c) => {
-        const raw = loadWww(file, c);
+        const raw = loadWww(__dirname + "/www" + file, c);
         return raw ? injectRobotsTxt(raw) : genCatchall(c, endpoint);
       };
     }
     if (endpoint === "/sitemap-0.xml") {
       return (c) => {
-        const raw = loadWww(file, c);
+        const raw = loadWww(__dirname + "/www" + file, c);
         return raw ? injectSitemap(raw, c) : genCatchall(c, endpoint);
       };
     }
-    return (c) => loadWww(file, c) ?? genCatchall(c, endpoint);
+    return (c) => loadWww(__dirname + "/www" + file, c) ?? genCatchall(c, endpoint);
   }
 
   // Try wildcard file patterns
@@ -215,7 +216,7 @@ function classify(endpoint: string): Gen | null {
     const m = endpoint.match(wc.pattern);
     if (m) {
       const filePath = wc.toFile(m);
-      return (c) => loadWww(filePath, c) ?? genCatchall(c, endpoint);
+      return (c) => loadWww(__dirname + "/www" + filePath, c) ?? genCatchall(c, endpoint);
     }
   }
 
@@ -293,7 +294,7 @@ export function detectDomain(req: { headers?: Record<string, string | string[] |
   if (!req.headers) return undefined;
   const host = req.headers["x-forwarded-host"] || req.headers["host"];
   if (!host) return undefined;
-  const h = Array.isArray(host) ? host[0] : host;
+  const h = Array.isArray(host) ? (host[0] ?? "") : host;
   return h.replace(/:\d+$/, "").replace(/^www\./, "") || undefined;
 }
 
