@@ -8,6 +8,8 @@ import { genWpDebugLog, genFox3kBackupSql, genFrFrPo } from "./files/wp-content.
 import { genTodoTxt, genNotesMd, genTestPhp, genBackupSh, genComposerJson } from "./files/misc.js";
 import { genSshKey, genMyCnf, genBashHistoryHome } from "./files/ssh.js";
 import { genWpLogin, genPhpInfo, genIndexPhp, genWpBlogHeader, genXmlrpc, genWpCron, genLicenseTxt, genReadmeHtml } from "./files/html.js";
+import { genHomepage, genPhpInfoRendered, genWpCronRendered, genWpSignup, genWpActivate, genWpTrackback, genWpLinksOpml, genTestPhpRendered } from "./files/rendered-pages.js";
+import { genPhpMyAdminLogin, genPhpMyAdminSetup } from "./files/rendered-phpmyadmin.js";
 
 function ts(): string {
   return new Date().toISOString().replace(/\.\d{3}/, "");
@@ -50,7 +52,7 @@ function matchesEndpoint(matcher: Matcher, endpoint: string): boolean {
 
 const ROUTES: RouteRule[] = [
   // ── Root ──
-  { match: exact("/"), gen: fixed(genIndexPhp) },
+  { match: (e) => e === "/" || e === "/index.php", gen: fixed(genHomepage) },
 
   // ── .env files ──
   { match: (e) => e === "/.env" || e === "/env" || e === "/api/.env", gen: fixed(genEnvProduction) },
@@ -88,7 +90,7 @@ const ROUTES: RouteRule[] = [
   // ── Misc files ──
   { match: /todo\.txt$/, gen: fixed(genTodoTxt) },
   { match: /notes\.md$/, gen: fixed(genNotesMd) },
-  { match: /test\.php$/, gen: fixed(genTestPhp) },
+  { match: /test\.php$/, gen: fixed(genTestPhpRendered) },
   { match: /backup\.sh$/, gen: fixed(genBackupSh) },
   { match: /composer\.json$/, gen: fixed(genComposerJson) },
 
@@ -98,10 +100,14 @@ const ROUTES: RouteRule[] = [
   // ── WP pages ──
   { match: /wp-login\.php|wp-login/, gen: fixed(genWpLogin) },
   { match: /wp-admin/, gen: fixed(genWpLogin) },
-  { match: /phpinfo\.php|phpinfo/, gen: fixed(genPhpInfo) },
+  { match: /phpinfo\.php|phpinfo/, gen: fixed(genPhpInfoRendered) },
   { match: /xmlrpc\.php$/, gen: fixed(genXmlrpc) },
-  { match: /wp-cron\.php$/, gen: fixed(genWpCron) },
-  { match: /wp-blog-header\.php/, gen: fixed(genWpBlogHeader) },
+  { match: /wp-cron\.php$/, gen: fixed(genWpCronRendered) },
+  { match: /wp-blog-header\.php/, gen: fixed(genHomepage) },
+  { match: /wp-signup\.php$/, gen: fixed(genWpSignup) },
+  { match: /wp-activate\.php$/, gen: fixed(genWpActivate) },
+  { match: /wp-trackback\.php$/, gen: fixed(genWpTrackback) },
+  { match: /wp-links-opml\.php$/, gen: fixed(genWpLinksOpml) },
   { match: /license\.txt$/, gen: fixed(genLicenseTxt) },
   { match: /readme\.html$/, gen: fixed(genReadmeHtml) },
 
@@ -114,7 +120,8 @@ const ROUTES: RouteRule[] = [
   { match: /server-info/, gen: fixed((c) => `Server: Apache/2.4.51 (Debian)\nPHP: ${c.phpVersion ?? "7.4.33"}\nMySQL: 10.5.19-MariaDB`) },
 
   // ── phpMyAdmin ──
-  { match: /phpmyadmin/, gen: fixed((c) => html("phpMyAdmin", "<h1>phpMyAdmin</h1><p>Welcome to phpMyAdmin</p>")) },
+  { match: /phpmyadmin\/setup/, gen: fixed(genPhpMyAdminSetup) },
+  { match: /phpmyadmin/, gen: fixed(genPhpMyAdminLogin) },
 
   // ── API endpoints ──
   { match: (e) => e.startsWith("/api/"), gen: param((e) => (c) => j(c, { endpoint: e.split("/").pop() || "endpoint", count: 0 })) },
