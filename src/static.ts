@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { SiteConfig } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -9,11 +9,10 @@ const WWW_DIR = join(dirname(__filename), "..", "www");
 const cache = new Map<string, string>();
 
 function loadRaw(rel: string): string | null {
-  const key = rel;
+  const key = resolve(rel);
   if (cache.has(key)) return cache.get(key)!;
-  const full = join(WWW_DIR, rel);
-  if (!existsSync(full)) return null;
-  const content = readFileSync(full, "utf-8");
+  if (!existsSync(key)) return null;
+  const content = readFileSync(key, "utf-8");
   cache.set(key, content);
   return content;
 }

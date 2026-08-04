@@ -198,17 +198,17 @@ function classify(endpoint: string): Gen | null {
   if (file) {
     if (endpoint === "/robots.txt") {
       return (c) => {
-        const raw = loadWww(__dirname + "/www" + file, c);
+        const raw = loadWww(__dirname + "/../www/" + file, c);
         return raw ? injectRobotsTxt(raw) : genCatchall(c, endpoint);
       };
     }
     if (endpoint === "/sitemap-0.xml") {
       return (c) => {
-        const raw = loadWww(__dirname + "/www" + file, c);
+        const raw = loadWww(__dirname + "/../www/" + file, c);
         return raw ? injectSitemap(raw, c) : genCatchall(c, endpoint);
       };
     }
-    return (c) => loadWww(__dirname + "/www" + file, c) ?? genCatchall(c, endpoint);
+    return (c) => loadWww(__dirname + "/../www/" + file, c) ?? genCatchall(c, endpoint);
   }
 
   // Try wildcard file patterns
@@ -216,7 +216,7 @@ function classify(endpoint: string): Gen | null {
     const m = endpoint.match(wc.pattern);
     if (m) {
       const filePath = wc.toFile(m);
-      return (c) => loadWww(__dirname + "/www" + filePath, c) ?? genCatchall(c, endpoint);
+      return (c) => loadWww(__dirname + "/../www/" + filePath, c) ?? genCatchall(c, endpoint);
     }
   }
 
