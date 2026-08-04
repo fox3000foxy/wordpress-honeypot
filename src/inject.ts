@@ -1,3 +1,11 @@
+/**
+ * Runtime injection of honeypot paths into robots.txt and sitemap.
+ *
+ * Unlike static file rewriting, injection happens at request time
+ * so the source templates remain generic (example.com placeholders).
+ *
+ * @packageDocumentation
+ */
 import type { SiteConfig } from "./types.js";
 
 const DISALLOW_PATHS = [
@@ -85,6 +93,12 @@ function escapeXml(text: string): string {
 
 /**
  * Inject honeypot Disallow rules into robots.txt content.
+ *
+ * Appends `Disallow:` directives for sensitive paths that scanners
+ * should be lured into requesting. Skips injection if already present.
+ *
+ * @param content - Original robots.txt content
+ * @returns Modified content with injected Disallow rules
  */
 export function injectRobotsTxt(content: string): string {
 	if (content.includes("Disallow: /wp-config.php")) return content;
@@ -99,6 +113,14 @@ export function injectRobotsTxt(content: string): string {
 
 /**
  * Inject decoy URLs into sitemap-0.xml content.
+ *
+ * Adds visible `<url>` entries for honeypot endpoints (lures scanners)
+ * and HTML-commented entries for sensitive paths (visible to source code readers).
+ * Skips injection if already present.
+ *
+ * @param content - Original sitemap XML content
+ * @param config - Site configuration (used for domain in URLs)
+ * @returns Modified sitemap with injected honeypot entries
  */
 export function injectSitemap(content: string, config: SiteConfig): string {
 	if (content.includes("/wp-config.php</loc>")) return content;

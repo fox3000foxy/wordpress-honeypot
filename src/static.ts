@@ -57,7 +57,10 @@ function normalize(rel: string): string {
 
 /**
  * Load a file from www/ and apply SiteConfig replacements.
- * Returns null if the file doesn't exist.
+ *
+ * @param rel - Relative path within www/ (e.g. `"wp-login.php"`, `"/.env.production"`)
+ * @param config - Site configuration used for value substitution
+ * @returns Rendered content string, or `null` if the file doesn't exist
  */
 export function loadWww(rel: string, config: SiteConfig): string | null {
 	const raw = loadRaw(normalize(rel));
@@ -66,7 +69,10 @@ export function loadWww(rel: string, config: SiteConfig): string | null {
 }
 
 /**
- * Check if a file exists in www/.
+ * Check if a file exists in the embedded www/ bundle.
+ *
+ * @param rel - Relative path within www/ (e.g. `"wp-login.php"`)
+ * @returns `true` if the file exists, `false` otherwise
  */
 export function wwwExists(rel: string): boolean {
 	return loadRaw(normalize(rel)) !== null;
