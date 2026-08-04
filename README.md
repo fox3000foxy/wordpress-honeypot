@@ -42,6 +42,95 @@ app.listen(8080);
 | Koa | `wordpress-honeypot/koa` | `koaMiddleware(config)` |
 | Node http | `wordpress-honeypot/node` | `nodeHttpHandler(config)` |
 
+### Express
+
+```ts
+import express from "express";
+import { expressMiddleware } from "wordpress-honeypot/express";
+
+const app = express();
+
+// Auto-detect domain from Host header
+app.use(expressMiddleware());
+
+// Or with explicit config
+app.use(expressMiddleware({
+  domain: "example.com",
+  siteName: "My Blog",
+}));
+
+// With emitter for logging
+import { HoneypotEmitter } from "wordpress-honeypot";
+const emitter = new HoneypotEmitter();
+emitter.on("hit", (hit) => console.log(`[HONEYPOT] ${hit.path} from ${hit.ip}`));
+
+app.use(expressMiddleware({ domain: "example.com" }, { emitter }));
+
+app.listen(8080);
+```
+
+### Fastify
+
+```ts
+import Fastify from "fastify";
+import { fastifyPlugin } from "wordpress-honeypot/fastify";
+
+const app = Fastify();
+
+await app.register(fastifyPlugin, {
+  domain: "example.com",
+  siteName: "My Blog",
+});
+
+app.listen({ port: 8080 });
+```
+
+### Hono
+
+```ts
+import { Hono } from "hono";
+import { honoMiddleware } from "wordpress-honeypot/hono";
+
+const app = new Hono();
+
+// Works on Cloudflare Workers, Deno, Bun, Node
+app.use("*", honoMiddleware({ domain: "example.com" }));
+
+export default app;
+```
+
+### Koa
+
+```ts
+import Koa from "koa";
+import { koaMiddleware } from "wordpress-honeypot/koa";
+
+const app = new Koa();
+
+app.use(koaMiddleware({ domain: "example.com" }));
+
+app.listen(8080);
+```
+
+### Node http
+
+```ts
+import { createServer } from "node:http";
+import { nodeHttpHandler } from "wordpress-honeypot/node";
+
+const server = createServer((req, res) => {
+  // Returns true if honeypot handled the request
+  const handled = nodeHttpHandler({ domain: "example.com" })(req, res);
+  if (handled) return;
+
+  // Your real routes
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Hello, real world!");
+});
+
+server.listen(8080);
+```
+
 ## Configuration
 
 `SiteConfig` controls the **fake values** injected into honeypot templates. It has no effect on your actual server, database, or infrastructure — it only determines what appears in the deceptive responses served to scanners.
@@ -197,7 +286,6 @@ import {
   getResponse,       // Generate full HTTP response (status, headers, body)
   getPhpHeaders,     // Get realistic PHP/Apache headers
   detectDomain,      // Auto-detect domain from request headers
-  classifySpecific,  // Check if endpoint is a honeypot path
   ALL_ENDPOINTS,     // List of all supported endpoints
 } from "wordpress-honeypot";
 ```
