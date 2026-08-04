@@ -346,6 +346,186 @@ app.use("*", honoMiddleware({ domain: "example.com" }));
 export default app;
 ```
 
+## Static Deployment (GitHub Pages + Cloudflare)
+
+No server needed. Deploy the raw `www/` directory to GitHub Pages, put Cloudflare in front, and use Transform Rules to fake a PHP/Apache stack.
+
+### How it works
+
+1. Copy the contents of `www/` to your GitHub Pages root (or a subfolder)
+2. Enable Cloudflare proxy on your domain (orange cloud)
+3. Create a Transform Rule to inject fake PHP headers and strip GitHub fingerprints
+4. Scanners see a realistic WordPress/Apache server — not GitHub Pages
+
+### Step 1: Deploy `www/` to GitHub Pages
+
+```bash
+# Clone the repo (or copy the www/ directory)
+git clone https://github.com/fox3000foxy/wordpress-honeypot.git
+cd wordpress-honeypot
+
+# Copy www/ contents to your GitHub Pages repo
+cp -r www/* /path/to/your-github-pages-repo/
+```
+
+Or use a GitHub Action to deploy `www/` directly:
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy honeypot
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: www
+      - uses: actions/deploy-pages@v4
+```
+
+### Step 2: Enable Cloudflare Proxy
+
+1. Add your domain to Cloudflare (free plan works)
+2. Point DNS to `username.github.io` with **orange cloud enabled** (proxied)
+3. This hides the real GitHub Pages IP from scanners
+
+### Step 3: Transform Rules (Headers)
+
+Cloudflare Transform Rules inject fake PHP headers and strip GitHub/Fastly fingerprints.
+
+#### Headers to Add
+
+| Header | Value | Effect |
+|--------|-------|--------|
+| `X-Powered-By` | `PHP/7.4.33` | Fake PHP signature (typical WordPress) |
+| `X-Backend-Server` | `web-01` | Suggests an internal Apache server |
+| `X-Cache` | `MISS` | Cloudflare cache status (consistent with a VPS) |
+| `Server` | `Apache/2.4.51 (Debian)` | Fake Apache server banner |
+
+#### Headers to Remove
+
+| Header | Why |
+|--------|-----|
+| `X-GitHub-Request-Id` | Reveals GitHub Pages origin |
+| `x-github-edge-region` | Reveals GitHub edge location |
+| `X-Fastly-Request-ID` | Reveals Fastly CDN (GitHub's CDN) |
+| `X-Served-By` | Reveals Fastly backend |
+| `X-Timer` | Reveals Fastly timing |
+| `X-Cache-Hits` | Reveals Fastly cache layer |
+
+#### Cloudflare Dashboard Setup
+
+Go to **Rules → Transform Rules → Modify Response Header**:
+
+**Rule 1 — Add fake PHP headers:**
+
+| Action | Header Name | Value |
+|--------|-------------|-------|
+| Set static | `X-Powered-By` | `PHP/7.4.33` |
+| Set static | `X-Backend-Server` | `web-01` |
+| Set static | `X-Cache` | `MISS` |
+| Set static | `Server` | `Apache/2.4.51 (Debian)` |
+
+**Rule 2 — Remove GitHub/Fastly headers:**
+
+| Action | Header Name |
+|--------|-------------|
+| Remove | `X-GitHub-Request-Id` |
+| Remove | `x-github-edge-region` |
+| Remove | `X-Fastly-Request-ID` |
+| Remove | `X-Served-By` |
+| Remove | `X-Timer` |
+| Remove | `X-Cache-Hits` |
+
+#### Terraform / API (Alternative)
+
+```hcl
+# Cloudflare Transform Rules via Terraform
+resource "cloudflare_ruleset" "honeypot_headers" {
+  zone_id = var.cloudflare_zone_id
+  name    = "Honeypot Headers"
+  kind    = "zone"
+  phase   = "http_response_headers_transform"
+
+  rules {
+    action = "rewrite"
+    action_parameters {
+      headers {
+        name      = "X-Powered-By"
+        operation = "set"
+        value     = "PHP/7.4.33"
+      }
+      headers {
+        name      = "X-Backend-Server"
+        operation = "set"
+        value     = "web-01"
+      }
+      headers {
+        name      = "X-Cache"
+        operation = "set"
+        value     = "MISS"
+      }
+      headers {
+        name      = "Server"
+        operation = "set"
+        value     = "Apache/2.4.51 (Debian)"
+      }
+      # Remove GitHub/Fastly fingerprints
+      headers { name = "X-GitHub-Request-Id"   operation = "remove" }
+      headers { name = "x-github-edge-region"   operation = "remove" }
+      headers { name = "X-Fastly-Request-ID"    operation = "remove" }
+      headers { name = "X-Served-By"            operation = "remove" }
+      headers { name = "X-Timer"                operation = "remove" }
+      headers { name = "X-Cache-Hits"           operation = "remove" }
+    }
+    expression  = "true"
+    description = "Inject fake PHP headers and strip GitHub fingerprints"
+    enabled     = true
+  }
+}
+```
+
+### Step 4: Verify
+
+```bash
+# Check that GitHub headers are gone and PHP headers are present
+curl -I https://yourdomain.com/
+
+# Should NOT contain:
+#   X-GitHub-Request-Id
+#   X-Fastly-Request-ID
+#   X-Served-By
+
+# Should contain:
+#   X-Powered-By: PHP/7.4.33
+#   Server: Apache/2.4.51 (Debian)
+#   X-Backend-Server: web-01
+#   X-Cache: MISS
+
+# Check honeypot endpoints
+curl -s https://yourdomain.com/.env.production
+curl -s https://yourdomain.com/wp-config.php
+curl -s https://yourdomain.com/robots.txt
+```
+
+### Limitations
+
+- **No runtime injection** on static hosting: `robots.txt` and `sitemap-0.xml` are served as-is from `www/` (no `injectRobotsTxt`/`injectSitemap`). Edit them manually if needed.
+- **No dynamic responses**: endpoints like `/api/users/` serve static JSON files, not generated content.
+- **GitHub Pages serves 404.html** for missing paths — configure a custom 404 page in `www/404.html` (the included one is a WordPress-style 404).
+- **Cloudflare free plan** has a 100k requests/day limit — sufficient for most honeypot use cases.
+
 ## Development
 
 ### Build
