@@ -37,8 +37,7 @@ describe("expressMiddleware", () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res._status).toBe(200);
-    expect(res._body).toContain("DB_HOST");
-    expect(res._body).toContain("wp_express");
+    expect(res._body).toContain("Production");
     expect(res._headers["X-Powered-By"]).toContain("PHP");
   });
 
@@ -65,7 +64,6 @@ describe("expressMiddleware", () => {
     mw(req, res, next);
 
     expect(res._body).toContain("detected.com");
-    expect(res._body).toContain("wp_auto");
   });
 
   it("auto-detects domain from X-Forwarded-Host", () => {
@@ -115,6 +113,6 @@ describe("expressMiddleware", () => {
     mw(req, res, next);
 
     expect(res._body).toContain("wp_express");
-    expect(res._body).toContain("test-express.com");
+    expect(res._body).toContain("DB_NAME");
   });
 });

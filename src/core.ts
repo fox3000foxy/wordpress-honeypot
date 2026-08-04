@@ -1,15 +1,5 @@
 import type { SiteConfig, Gen, RouteRule, Matcher, GenFactory, HoneypotResponse } from "./types.js";
-import { genEnvProduction, genEnvBackup } from "./files/env.js";
-import { genWpConfig, genWpConfigBak, genWpConfigSample } from "./files/wp-config.js";
-import { genCardPayment, genBashHistoryRoot, genOvhConfig, genMsmtpRc } from "./files/root.js";
-import { genMongoCredentials, genMongoReplicaConf } from "./files/mongo.js";
-import { genApacheConf } from "./files/apache.js";
-import { genWpDebugLog, genFox3kBackupSql, genFrFrPo } from "./files/wp-content.js";
-import { genTodoTxt, genNotesMd, genTestPhp, genBackupSh, genComposerJson } from "./files/misc.js";
-import { genSshKey, genMyCnf, genBashHistoryHome } from "./files/ssh.js";
-import { genWpLogin, genPhpInfo, genIndexPhp, genWpBlogHeader, genXmlrpc, genWpCron, genLicenseTxt, genReadmeHtml } from "./files/html.js";
-import { genHomepage, genPhpInfoRendered, genWpCronRendered, genWpSignup, genWpActivate, genWpTrackback, genWpLinksOpml, genTestPhpRendered } from "./files/rendered-pages.js";
-import { genPhpMyAdminLogin, genPhpMyAdminSetup } from "./files/rendered-phpmyadmin.js";
+import { loadWww } from "./static.js";
 
 function ts(): string {
   return new Date().toISOString().replace(/\.\d{3}/, "");
@@ -29,6 +19,76 @@ function j(c: SiteConfig, data: Record<string, unknown>): string {
 function html(title: string, body: string): string {
   return `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<title>${title}</title>\n</head>\n<body>\n${body}\n</body>\n</html>`;
 }
+
+// ─── Static file helper ───────────────────────────────────────────────────────
+// Maps endpoint → relative path in www/ directory.
+// If the file exists, it's served with SiteConfig replacements.
+// If not, falls through to the next route.
+
+const FILE_MAP: Record<string, string> = {
+  "/": "index.php",
+  "/index.php": "index.php",
+  "/wp-login.php": "wp-login.php",
+  "/wp-admin/": "wp-login.php",
+  "/wp-blog-header.php": "wp-blog-header.php",
+  "/wp-cron.php": "wp-cron.php",
+  "/wp-trackback.php": "wp-trackback.php",
+  "/wp-links-opml.php": "wp-links-opml.php",
+  "/wp-comments-post.php": "wp-comments-post.php",
+  "/wp-signup.php": "wp-signup.php",
+  "/wp-activate.php": "wp-activate.php",
+  "/wp-mail.php": "wp-mail.php",
+  "/wp-settings.php": "wp-settings.php",
+  "/wp-load.php": "wp-load.php",
+  "/phpinfo.php": "phpinfo.php",
+  "/test.php": "test.php",
+  "/license.txt": "license.txt",
+  "/readme.html": "readme.html",
+  "/xmlrpc.php": "xmlrpc.php",
+  "/.htaccess": ".htaccess",
+  "/wp-config.php": "wp-config.php",
+  "/wp-config.php.bak": "wp-config.php.bak",
+  "/wp-config-sample.php": "wp-config-sample.php",
+  "/.env.production": ".env.production",
+  "/.env.backup": ".env.backup",
+  "/.env": ".env.production",
+  "/env.production": ".env.production",
+  "/env.backup": ".env.backup",
+  "/api/.env": ".env.production",
+  "/backup.sh": "backup.sh",
+  "/composer.json": "composer.json",
+  "/todo.txt": "todo.txt",
+  "/notes.md": "notes.md",
+  "/root/.card_payment": "root/.card_payment",
+  "/root/card_payment": "root/.card_payment",
+  "/root/.bash_history": "root/.bash_history",
+  "/root/bash_history": "root/.bash_history",
+  "/root/.ovh_config": "root/.ovh_config",
+  "/root/ovh_config": "root/.ovh_config",
+  "/root/.msmtprc": "root/.msmtprc",
+  "/root/msmtprc": "root/.msmtprc",
+  "/mongo/.credentials": "mongo/.credentials",
+  "/mongo/credentials": "mongo/.credentials",
+  "/mongo/replica.conf": "mongo/replica.conf",
+  "/mongo/replica": "mongo/replica.conf",
+  "/.my.cnf": ".my.cnf",
+  "/my.cnf": ".my.cnf",
+  "/wp-content/debug.log": "wp-content/debug.log",
+  "/wp-content/languages/fr_FR.po": "wp-content/languages/fr_FR.po",
+  "/server-status/": "server-status/index.html",
+  "/server-info/": "server-info/index.html",
+  "/wp-includes/version.php": "wp-includes/version.php",
+  "/phpmyadmin/": "phpmyadmin/index.php",
+  "/phpmyadmin/index.php": "phpmyadmin/index.php",
+  "/wp-admin/internal-sitemap.xml": "wp-admin/internal-sitemap.xml",
+};
+
+// Wildcard patterns: endpoint regex → www/ file path template
+const WILDCARD_FILES: Array<{ pattern: RegExp; toFile: (match: RegExpMatchArray) => string }> = [
+  { pattern: /^\/etc\/apache2\/sites-available\/(.+)$/, toFile: (m) => `etc/apache2/sites-available/${m[1]}` },
+  { pattern: /^\/home\/[^/]+\/\.bash_history$/, toFile: () => "home/fox3000foxy/.bash_history" },
+  { pattern: /^\/\.ssh\/(id_rsa|id_ecdsa|id_ed25519)$/, toFile: () => ".my.cnf" }, // fallback
+];
 
 // ─── Catchall ────────────────────────────────────────────────────────────────
 
@@ -51,94 +111,39 @@ function matchesEndpoint(matcher: Matcher, endpoint: string): boolean {
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 const ROUTES: RouteRule[] = [
-  // ── Root ──
-  { match: (e) => e === "/" || e === "/index.php", gen: fixed(genHomepage) },
+  // ── Static files from www/ ──
+  // These are checked first via FILE_MAP before falling through to generators.
 
-  // ── .env files ──
-  { match: (e) => e === "/.env" || e === "/env" || e === "/api/.env", gen: fixed(genEnvProduction) },
-  { match: (e) => e === "/.env.production" || e === "/env.production", gen: fixed(genEnvProduction) },
-  { match: (e) => e === "/.env.backup" || e === "/env.backup", gen: fixed(genEnvBackup) },
-
-  // ── SSH / MySQL ──
-  { match: /id_rsa|id_ecdsa|id_ed25519/, gen: fixed(genSshKey) },
+  // ── SSH / MySQL (no file, generator) ──
+  { match: /id_rsa|id_ecdsa|id_ed25519/, gen: fixed((c) => `-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACBHK9s9vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vGz0vA` ) },
   { match: /authorized_keys/, gen: fixed((c) => `# Deploy keys\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7vKz... deploy@${c.domain}`) },
-  { match: /\.my\.cnf|my\.cnf/, gen: fixed(genMyCnf) },
 
-  // ── WordPress configs ──
-  { match: /wp-config\.php$/, gen: fixed(genWpConfig) },
-  { match: /wp-config\.php\.bak|wp-config\.bak/, gen: fixed(genWpConfigBak) },
-  { match: /wp-config-sample\.php/, gen: fixed(genWpConfigSample) },
+  // ── WP REST API ──
+  { match: /wp-json\/wp\/v2\/users/, gen: fixed((c) => j(c, { data: [{ id: 1, name: c.siteName ?? "admin", slug: "fox3k", description: "", link: `https://${c.domain}/author/fox3k/`, avatar_urls: {} }] })) },
 
-  // ── Root files ──
-  { match: /root\/\.card_payment|root\/card_payment/, gen: fixed(genCardPayment) },
-  { match: /root\/\.bash_history|root\/bash_history/, gen: fixed(genBashHistoryRoot) },
-  { match: /root\/\.ovh_config|root\/ovh_config/, gen: fixed(genOvhConfig) },
-  { match: /root\/\.msmtprc|root\/msmtprc/, gen: fixed(genMsmtpRc) },
+  // ── Fake WP plugin ──
+  { match: /wp-content\/plugins\/wp-updater-guru/, gen: fixed((c) => `<?php\n/**\n * Plugin Name: WP Updater Guru\n * Description: Auto-sync plugin for staging/production\n * Version: 1.4.2\n * Author: fox3k\n */\n// Syncing endpoint: /wp-admin/admin-ajax.php?action=wug_sync`) },
 
-  // ── Mongo ──
-  { match: /mongo\/\.credentials|mongo\/credentials/, gen: fixed(genMongoCredentials) },
-  { match: /mongo\/replica\.conf|mongo\/replica/, gen: fixed(genMongoReplicaConf) },
+  // ── Theme CSS ──
+  { match: /wp-content\/themes\/[^/]+\/style\.css$/, gen: fixed((c) => `/*!\nTheme Name: ${c.themeName ?? "fox3k"}\nTheme URI: https://${c.domain}\nDescription: Custom theme\nAuthor: ${c.siteName ?? "fox3k"}\nVersion: 1.0.0\n*/\nbody{font-family:sans-serif;margin:0;padding:0}`) },
 
-  // ── Apache config ──
-  { match: /etc\/apache2\/sites-available\//, gen: fixed(genApacheConf) },
+  // ── .env (programmatic fallback) ──
+  { match: (e) => e === "/.env", gen: fixed((c) => `DB_HOST=localhost\nDB_NAME=${c.dbName ?? "wordpress"}\nDB_USER=${c.dbUser ?? "wp_user"}\nDB_PASSWORD=${c.dbPassword ?? "change_me"}\nWP_HOME=https://${c.domain}\nWP_SITEURL=https://${c.domain}`) },
 
-  // ── WP content ──
-  { match: /wp-content\/debug\.log/, gen: fixed(genWpDebugLog) },
-  { match: /wp-content\/uploads\/.*\.sql/, gen: fixed(genFox3kBackupSql) },
-  { match: /wp-content\/languages\/fr_FR\.po/, gen: fixed(genFrFrPo) },
-
-  // ── Misc files ──
-  { match: /todo\.txt$/, gen: fixed(genTodoTxt) },
-  { match: /notes\.md$/, gen: fixed(genNotesMd) },
-  { match: /test\.php$/, gen: fixed(genTestPhpRendered) },
-  { match: /backup\.sh$/, gen: fixed(genBackupSh) },
-  { match: /composer\.json$/, gen: fixed(genComposerJson) },
-
-  // ── Home user ──
-  { match: /home\/[^/]+\/\.bash_history/, gen: fixed(genBashHistoryHome) },
-
-  // ── WP pages ──
-  { match: /wp-login\.php|wp-login/, gen: fixed(genWpLogin) },
-  { match: /wp-admin/, gen: fixed(genWpLogin) },
-  { match: /phpinfo\.php|phpinfo/, gen: fixed(genPhpInfoRendered) },
-  { match: /xmlrpc\.php$/, gen: fixed(genXmlrpc) },
-  { match: /wp-cron\.php$/, gen: fixed(genWpCronRendered) },
-  { match: /wp-blog-header\.php/, gen: fixed(genHomepage) },
-  { match: /wp-signup\.php$/, gen: fixed(genWpSignup) },
-  { match: /wp-activate\.php$/, gen: fixed(genWpActivate) },
-  { match: /wp-trackback\.php$/, gen: fixed(genWpTrackback) },
-  { match: /wp-links-opml\.php$/, gen: fixed(genWpLinksOpml) },
-  { match: /license\.txt$/, gen: fixed(genLicenseTxt) },
-  { match: /readme\.html$/, gen: fixed(genReadmeHtml) },
-
-  // ── Git / SVN ──
+  // ── Git ──
   { match: /\.git\/config$/, gen: fixed((c) => `[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n[remote "origin"]\n\turl = git@github.com:${(c.siteName ?? "user")}/${c.domain.replace(/\./g, "-")}.github.io.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*`) },
   { match: /\.git\/HEAD$/, gen: fixed((c) => `ref: refs/heads/main\n`) },
 
-  // ── Server info ──
-  { match: /server-status/, gen: fixed((c) => `Apache Server Status for ${c.domain}\nUptime: 127 days\nTotal requests: 1234567`) },
-  { match: /server-info/, gen: fixed((c) => `Server: Apache/2.4.51 (Debian)\nPHP: ${c.phpVersion ?? "7.4.33"}\nMySQL: 10.5.19-MariaDB`) },
-
-  // ── phpMyAdmin ──
-  { match: /phpmyadmin\/setup/, gen: fixed(genPhpMyAdminSetup) },
-  { match: /phpmyadmin/, gen: fixed(genPhpMyAdminLogin) },
-
-  // ── API endpoints ──
+  // ── API endpoints (not files) ──
   { match: (e) => e.startsWith("/api/"), gen: param((e) => (c) => j(c, { endpoint: e.split("/").pop() || "endpoint", count: 0 })) },
-
-  // ── Swagger / OpenAPI ──
   { match: /swagger|openapi/, gen: fixed((c) => j(c, { openapi: "3.0.0", info: { title: `${c.siteName ?? c.domain} API`, version: "1.0.0" } })) },
-
-  // ── Actuator (Spring Boot) ──
   { match: /actuator/, gen: param((e) => (c) => j(c, { status: "UP", endpoints: ["health", "info", "env"] })) },
-
-  // ── Health check ──
   { match: /^\/health$|^\/healthz$|^\/alive$|^\/ready$/, gen: fixed((c) => j(c, { status: "healthy", uptime: Math.floor(Math.random() * 86400 * 30) })) },
 
-  // ── JSON files ──
+  // ── JSON files (programmatic) ──
   { match: /\.json$/, gen: param((e) => (c) => j(c, { config: e.split("/").pop()?.replace(".json", "") || "config" })) },
 
-  // ── PHP files (generic) ──
+  // ── PHP files (generic catchall) ──
   { match: /\.php$/, gen: param((e) => (c) => `<?php\n// ${e}\nhttp_response_code(200);\nheader('Content-Type: text/html');\necho "OK";\n?>`) },
 
   // ── HTML files ──
@@ -182,6 +187,21 @@ const SPECIFIC_ROUTES: Record<string, Gen> = {
 function classify(endpoint: string): Gen | null {
   if (endpoint in SPECIFIC_ROUTES) return SPECIFIC_ROUTES[endpoint];
 
+  // Try static file first (exact match)
+  const file = FILE_MAP[endpoint];
+  if (file) {
+    return (c) => loadWww(file, c) ?? genCatchall(c, endpoint);
+  }
+
+  // Try wildcard file patterns
+  for (const wc of WILDCARD_FILES) {
+    const m = endpoint.match(wc.pattern);
+    if (m) {
+      const filePath = wc.toFile(m);
+      return (c) => loadWww(filePath, c) ?? genCatchall(c, endpoint);
+    }
+  }
+
   for (const rule of ROUTES) {
     if (matchesEndpoint(rule.match, endpoint)) {
       return rule.gen(endpoint);
@@ -199,15 +219,6 @@ function classify(endpoint: string): Gen | null {
  * @param config - Site configuration (domain, credentials, etc.)
  * @param endpoint - Request path (e.g. `"/.env.production"`)
  * @returns Generated content string, or `null` if no route matches
- *
- * @example
- * ```ts
- * const content = generateMockup(
- *   { domain: "example.com", dbName: "wp_prod" },
- *   "/.env.production"
- * );
- * // => "DB_HOST=localhost\nDB_USER=wp_admin\n..."
- * ```
  */
 export function generateMockup(config: SiteConfig, endpoint: string): string | null {
   const gen = classify(endpoint);
@@ -218,22 +229,9 @@ export function generateMockup(config: SiteConfig, endpoint: string): string | n
 /**
  * Generate a full HTTP response (status, headers, body) for a honeypot endpoint.
  *
- * Includes realistic PHP/Apache headers (`X-Powered-By`, `Server`, `X-Backend-Server`).
- * Content-Type is auto-detected from the response body.
- *
  * @param config - Site configuration
  * @param endpoint - Request path
  * @returns Complete HTTP response, or `null` if no route matches
- *
- * @example
- * ```ts
- * const res = getResponse({ domain: "example.com" }, "/wp-config.php");
- * if (res) {
- *   res.status;    // 200
- *   res.headers;   // { "X-Powered-By": "PHP/7.4.33", ... }
- *   res.body;      // "<?php\ndefine('DB_NAME', ...)..."
- * }
- * ```
  */
 export function getResponse(config: SiteConfig, endpoint: string): HoneypotResponse | null {
   const body = generateMockup(config, endpoint);
@@ -258,12 +256,6 @@ export function getResponse(config: SiteConfig, endpoint: string): HoneypotRespo
  *
  * @param config - Site configuration
  * @returns Headers object with `X-Powered-By`, `Server`, `X-Backend-Server`
- *
- * @example
- * ```ts
- * const headers = getPhpHeaders({ domain: "example.com" });
- * // => { "X-Powered-By": "PHP/7.4.33", "Server": "Apache/2.4.51 (Debian)", ... }
- * ```
  */
 export function getPhpHeaders(config: SiteConfig): Record<string, string> {
   return {
@@ -277,20 +269,8 @@ export function getPhpHeaders(config: SiteConfig): Record<string, string> {
 /**
  * Auto-detect the site domain from HTTP request headers.
  *
- * Checks `X-Forwarded-Host` first, then `Host`.
- * Strips port number and leading `www.`.
- *
  * @param req - Request object with `headers` property
  * @returns Detected domain (e.g. `"example.com"`), or `undefined` if not found
- *
- * @example
- * ```ts
- * detectDomain({ headers: { host: "example.com:8080" } });
- * // => "example.com"
- *
- * detectDomain({ headers: { "x-forwarded-host": "www.example.com" } });
- * // => "example.com"
- * ```
  */
 export function detectDomain(req: { headers?: Record<string, string | string[] | undefined> }): string | undefined {
   if (!req.headers) return undefined;
@@ -386,4 +366,10 @@ export const ALL_ENDPOINTS = [
   "/stage-api/common/configKey/all",
   "/support/index",
   "/unSecurity/app/config",
+  "/.htaccess",
+  "/wp-json/wp/v2/users/",
+  "/wp-content/plugins/wp-updater-guru/",
+  "/wp-content/themes/fox3k/style.css",
+  "/wp-includes/version.php",
+  "/wp-admin/internal-sitemap.xml",
 ];

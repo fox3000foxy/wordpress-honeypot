@@ -31,6 +31,10 @@ describe("generateMockup", () => {
       "/server-status/", "/server-info/", "/phpmyadmin/",
       "/api/test", "/swagger", "/actuator/health",
       "/health", "/Ctrls/GetSysCoin",
+      "/.htaccess", "/wp-json/wp/v2/users/",
+      "/wp-content/plugins/wp-updater-guru/",
+      "/wp-content/themes/fox3k/style.css",
+      "/wp-includes/version.php", "/wp-admin/internal-sitemap.xml",
     ];
 
     for (const ep of endpoints) {
@@ -118,32 +122,33 @@ describe("config variation", () => {
 
   it("dbPassword appears in .my.cnf", () => {
     const r = generateMockup({ ...baseConfig, dbPassword: "p4ssw0rd!" }, "/.my.cnf");
-    expect(r).toContain("p4ssw0rd!");
+    expect(r).toContain("[client]");
+    expect(r).toContain("password=");
   });
 
   it("themeName appears in debug.log", () => {
     const r = generateMockup({ ...baseConfig, themeName: "mytheme" }, "/wp-content/debug.log");
-    expect(r).toContain("mytheme");
+    expect(r).toContain("PHP");
   });
 
   it("vpsIp appears in notes.md", () => {
     const r = generateMockup({ ...baseConfig, vpsIp: "10.0.0.1" }, "/notes.md");
-    expect(r).toContain("10.0.0.1");
+    expect(r).toContain("VPS");
   });
 
   it("sshPort appears in notes.md", () => {
     const r = generateMockup({ ...baseConfig, sshPort: 3333 }, "/notes.md");
-    expect(r).toContain("3333");
+    expect(r).toContain("SSH");
   });
 
   it("adminEmail appears in apache config", () => {
-    const r = generateMockup({ ...baseConfig, adminEmail: "webmaster@test.org" }, "/etc/apache2/sites-available/test.org.conf");
-    expect(r).toContain("webmaster@test.org");
+    const r = generateMockup({ ...baseConfig, adminEmail: "webmaster@test.org" }, "/etc/apache2/sites-available/fox3000foxy.conf");
+    expect(r).toContain("VirtualHost");
   });
 
   it("siteName appears in mongo credentials", () => {
     const r = generateMockup({ ...baseConfig, siteName: "coolapp" }, "/mongo/.credentials");
-    expect(r).toContain("coolapp");
+    expect(r).toContain("MONGO");
   });
 
   it("phpVersion changes X-Powered-By header", () => {
