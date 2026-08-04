@@ -68,6 +68,7 @@ const FILE_MAP: Record<string, string> = {
 	"/env.production": ".env.production",
 	"/env.backup": ".env.backup",
 	"/api/.env": ".env.production",
+	"/backup.sh": "backup.sh",
 	"/composer.json": "composer.json",
 	"/todo.txt": "todo.txt",
 	"/notes.md": "notes.md",
