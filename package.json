@@ -1,0 +1,56 @@
+{
+  "name": "wordpress-honeypot",
+  "version": "1.0.0",
+  "description": "Realistic WordPress honeypot for trapping scanners, bots, and AI agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./express": {
+      "import": "./dist/adapters/express.js",
+      "types": "./dist/adapters/express.d.ts"
+    },
+    "./fastify": {
+      "import": "./dist/adapters/fastify.js",
+      "types": "./dist/adapters/fastify.d.ts"
+    },
+    "./hono": {
+      "import": "./dist/adapters/hono.js",
+      "types": "./dist/adapters/hono.d.ts"
+    },
+    "./koa": {
+      "import": "./dist/adapters/koa.js",
+      "types": "./dist/adapters/koa.d.ts"
+    },
+    "./node": {
+      "import": "./dist/adapters/node-http.js",
+      "types": "./dist/adapters/node-http.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "dev": "vitest"
+  },
+  "keywords": [
+    "honeypot",
+    "wordpress",
+    "security",
+    "deception",
+    "bot-trap",
+    "scanner"
+  ],
+  "author": "Fox3000foxy",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.10"
+  },
+  "files": [
+    "dist"
+  ]
+}
