@@ -102,14 +102,23 @@ const FILE_MAP: Record<string, string> = {
 	"/sitemap-0.xml": "sitemap-0.xml",
 };
 
+// Status code overrides for specific endpoints (default: 200)
+const STATUS_OVERRIDES: Record<string, number> = {
+	"/.htaccess": 403,
+	"/server-status/": 403,
+	"/server-info/": 403,
+};
+
 // Wildcard patterns: endpoint regex → www/ file path template
 const WILDCARD_FILES: Array<{
 	pattern: RegExp;
 	toFile: (match: RegExpMatchArray) => string;
+	status?: number;
 }> = [
 	{
 		pattern: /^\/etc\/apache2\/sites-available\/(.+)$/,
 		toFile: (m) => `etc/apache2/sites-available/${m[1]}`,
+		status: 403,
 	},
 	{
 		pattern: /^\/wp-content\/uploads\/(.+_backup\.sql)$/,
@@ -172,7 +181,7 @@ const ROUTES: RouteRule[] = [
 		match: /wp-content\/plugins\/wp-updater-guru/,
 		gen: fixed(
 			(_c) =>
-				`<?php\n/**\n * Plugin Name: WP Updater Guru\n * Description: Auto-sync plugin for staging/production\n * Version: 1.4.2\n * Author: fox3k\n */\n// Syncing endpoint: /wp-admin/admin-ajax.php?action=wug_sync`,
+				`<?php\n/**\n * Plugin Name: WP Updater Guru\n * Description: Auto-sync plugin for staging/production\n * Version: 1.2.7\n * Author: fox3k\n */\n// Syncing endpoint: /wp-admin/admin-ajax.php?action=wug_sync`,
 		),
 	},
 
@@ -181,7 +190,7 @@ const ROUTES: RouteRule[] = [
 		match: /wp-content\/themes\/[^/]+\/style\.css$/,
 		gen: fixed(
 			(c) =>
-				`/*!\nTheme Name: ${c.themeName ?? "fox3k"}\nTheme URI: https://${c.domain}\nDescription: Custom theme\nAuthor: ${c.siteName ?? "fox3k"}\nVersion: 1.0.0\n*/\nbody{font-family:sans-serif;margin:0;padding:0}`,
+				`/*!\nTheme Name: ${c.themeName ?? "fox3k"}\nTheme URI: https://${c.domain}\nDescription: Custom theme\nAuthor: ${c.siteName ?? "fox3k"}\nVersion: 2.4.1\n*/\nbody{font-family:sans-serif;margin:0;padding:0}`,
 		),
 	},
 
@@ -601,24 +610,108 @@ export function getResponse(
 	config: SiteConfig,
 	endpoint: string,
 ): HoneypotResponse | null {
-	const body = generateMockup(config, endpoint);
-	if (!body) return null;
+	// Check specific routes first (these can have status codes)
+	const specific = SPECIFIC_ROUTES[endpoint];
+	if (specific) {
+		const body = specific(config);
+		return {
+			status: 200,
+			headers: {
+				"Content-Type": detectContentType(body),
+				...getPhpHeaders(config),
+			},
+			body,
+		};
+	}
 
+	// Check FILE_MAP
+	const file = FILE_MAP[endpoint];
+	if (file) {
+		const raw = loadWww(file, config);
+		if (raw) {
+			const body =
+				endpoint === "/robots.txt"
+					? injectRobotsTxt(raw)
+					: endpoint === "/sitemap-0.xml"
+						? injectSitemap(raw, config)
+						: raw;
+			const status = STATUS_OVERRIDES[endpoint] ?? 200;
+			return {
+				status,
+				headers: {
+					"Content-Type": detectContentType(body),
+					...getPhpHeaders(config),
+				},
+				body,
+			};
+		}
+		// File mapped but not found — return 404
+		return {
+			status: 404,
+			headers: {
+				"Content-Type": "text/html; charset=UTF-8",
+				...getPhpHeaders(config),
+			},
+			body: genCatchall(config, endpoint),
+		};
+	}
+
+	// Check WILDCARD_FILES
+	for (const wc of WILDCARD_FILES) {
+		const m = endpoint.match(wc.pattern);
+		if (m) {
+			const filePath = wc.toFile(m);
+			const raw = loadWww(filePath, config);
+			if (raw) {
+				return {
+					status: wc.status ?? 200,
+					headers: {
+						"Content-Type": detectContentType(raw),
+						...getPhpHeaders(config),
+					},
+					body: raw,
+				};
+			}
+		}
+	}
+
+	// Check ROUTES (with optional status codes)
+	for (const rule of ROUTES) {
+		if (matchesEndpoint(rule.match, endpoint)) {
+			const gen = rule.gen(endpoint);
+			const body = gen(config);
+			return {
+				status: rule.status ?? 200,
+				headers: {
+					"Content-Type": detectContentType(body),
+					...getPhpHeaders(config),
+				},
+				body,
+			};
+		}
+	}
+
+	// Catchall: return 404
 	return {
-		status: 200,
+		status: 404,
 		headers: {
-			"Content-Type":
-				body.startsWith("<!DOCTYPE") ||
-				body.startsWith("<html") ||
-				body.startsWith("<?xml")
-					? "text/html; charset=UTF-8"
-					: body.startsWith("{") || body.startsWith("[")
-						? "application/json; charset=UTF-8"
-						: "text/plain; charset=UTF-8",
+			"Content-Type": "text/html; charset=UTF-8",
 			...getPhpHeaders(config),
 		},
-		body,
+		body: genCatchall(config, endpoint),
 	};
+}
+
+function detectContentType(body: string): string {
+	if (
+		body.startsWith("<!DOCTYPE") ||
+		body.startsWith("<html") ||
+		body.startsWith("<?xml")
+	)
+		return "text/html; charset=UTF-8";
+	if (body.startsWith("{") || body.startsWith("["))
+		return "application/json; charset=UTF-8";
+	return "text/plain; charset=UTF-8";
 }
 
 /**
@@ -628,11 +721,14 @@ export function getResponse(
  * @returns Headers object with `X-Powered-By`, `Server`, `X-Backend-Server`
  */
 export function getPhpHeaders(config: SiteConfig): Record<string, string> {
+	const now = new Date();
 	return {
 		"X-Powered-By": `PHP/${config.phpVersion ?? "7.4.33"}`,
 		Server: config.serverSoftware ?? "Apache/2.4.51 (Debian)",
 		"X-Backend-Server": config.serverName ?? "web-01",
 		"X-Cache": "MISS",
+		"Last-Modified": now.toUTCString(),
+		ETag: `"${Date.now().toString(36)}"`,
 	};
 }
 

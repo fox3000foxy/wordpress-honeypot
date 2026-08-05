@@ -50,7 +50,7 @@ describe("expressMiddleware", () => {
     mw(req, res, next);
 
     expect(next).not.toHaveBeenCalled();
-    expect(res._status).toBe(200);
+    expect(res._status).toBe(404);
     expect(res._body).toContain("404");
     expect(res._body).toContain("Page not found");
   });
