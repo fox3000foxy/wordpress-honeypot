@@ -41,7 +41,7 @@ describe("expressMiddleware", () => {
     expect(res._headers["X-Powered-By"]).toContain("PHP");
   });
 
-  it("returns 404 for unknown routes", () => {
+  it("falls through to next() for unknown routes", () => {
     const mw = expressMiddleware(config);
     const req = mockExpressReq("/something-unknown");
     const res = mockExpressRes();
@@ -49,10 +49,8 @@ describe("expressMiddleware", () => {
 
     mw(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res._status).toBe(404);
-    expect(res._body).toContain("404");
-    expect(res._body).toContain("Page not found");
+    expect(next).toHaveBeenCalled();
+    expect(res._body).toBe("");
   });
 
   it("auto-detects domain from Host header", () => {

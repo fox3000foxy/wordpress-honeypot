@@ -602,11 +602,43 @@ export function generateMockup(
 /**
  * Generate a full HTTP response (status, headers, body) for a honeypot endpoint.
  *
+ * Always returns a response — falls back to a 404 catchall for unmatched paths.
+ * Use `getHoneypotResponse` if you need `null` for non-honeypot endpoints.
+ *
  * @param config - Site configuration
  * @param endpoint - Request path
- * @returns Complete HTTP response, or `null` if no route matches
+ * @returns Complete HTTP response
  */
 export function getResponse(
+	config: SiteConfig,
+	endpoint: string,
+): HoneypotResponse {
+	const result = getHoneypotResponse(config, endpoint);
+	if (result) return result;
+
+	// Fallback: return 404 catchall
+	const body = genCatchall(config, endpoint);
+	return {
+		status: 404,
+		headers: {
+			"Content-Type": "text/html; charset=UTF-8",
+			...getPhpHeaders(config),
+		},
+		body,
+	};
+}
+
+/**
+ * Generate a honeypot response only for known honeypot endpoints.
+ *
+ * Returns `null` for non-honeypot paths, allowing middleware to fall through
+ * to the next handler via `next()`.
+ *
+ * @param config - Site configuration
+ * @param endpoint - Request path
+ * @returns Complete HTTP response for honeypot paths, `null` otherwise
+ */
+export function getHoneypotResponse(
 	config: SiteConfig,
 	endpoint: string,
 ): HoneypotResponse | null {
@@ -691,15 +723,8 @@ export function getResponse(
 		}
 	}
 
-	// Catchall: return 404
-	return {
-		status: 404,
-		headers: {
-			"Content-Type": "text/html; charset=UTF-8",
-			...getPhpHeaders(config),
-		},
-		body: genCatchall(config, endpoint),
-	};
+	// Not a honeypot path — let middleware fall through
+	return null;
 }
 
 function detectContentType(body: string): string {

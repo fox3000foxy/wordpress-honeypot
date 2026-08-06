@@ -36,11 +36,25 @@ export {
 	/**
 	 * Generate a full HTTP response (status, headers, body) for an endpoint.
 	 *
+	 * Always returns a response — falls back to a 404 catchall for unmatched paths.
+	 * Use `getHoneypotResponse` if you need `null` for non-honeypot endpoints.
+	 *
 	 * @param config - Site configuration
 	 * @param endpoint - Request path
-	 * @returns Complete response with realistic PHP headers, or `null`
+	 * @returns Complete response with realistic PHP headers
 	 */
 	getResponse,
+	/**
+	 * Generate a honeypot response only for known honeypot endpoints.
+	 *
+	 * Returns `null` for non-honeypot paths, allowing middleware to fall through.
+	 * Use this in middleware to avoid shadowing other routes.
+	 *
+	 * @param config - Site configuration
+	 * @param endpoint - Request path
+	 * @returns Complete response for honeypot paths, `null` otherwise
+	 */
+	getHoneypotResponse,
 	/**
 	 * Get realistic PHP/Apache headers for manual response construction.
 	 *

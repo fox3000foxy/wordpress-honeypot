@@ -1,4 +1,4 @@
-import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
+import { detectDomain, getHoneypotResponse, getPhpHeaders } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -26,6 +26,8 @@ function clientIp(h: Record<string, any>): string | undefined {
  * Only intercepts known honeypot endpoints (see `ALL_ENDPOINTS`).
  * All other requests are passed through to later routes/hooks.
  *
+ * Use `exclude` to prevent specific paths from being intercepted by the honeypot.
+ *
  * @param fastify - Fastify instance
  * @param options - Partial site configuration (domain auto-detected if missing)
  *
@@ -44,22 +46,27 @@ function clientIp(h: Record<string, any>): string | undefined {
  * app.register(fastifyPlugin, {
  *   domain: "example.com",
  *   emitter,
+ *   exclude: ["/"],
  * });
  * app.listen({ port: 8080 });
  * ```
  */
 export function fastifyPlugin(
 	fastify: any,
-	options: Partial<SiteConfig> & { emitter?: HoneypotEmitter } = {},
+	options: Partial<SiteConfig> & { emitter?: HoneypotEmitter; exclude?: string[] } = {},
 ) {
-	const { emitter, ...config } = options;
+	const { emitter, exclude, ...config } = options;
+	const excluded = new Set(exclude ?? []);
 
 	fastify.addHook("onRequest", async (req: any, reply: any) => {
 		const endpoint = req.url.split("?")[0];
+
+		if (excluded.has(endpoint)) return;
+
 		const detected = detectDomain(req);
 		const cfg = resolveConfig(config, detected);
 
-		const response = getResponse(cfg, endpoint);
+		const response = getHoneypotResponse(cfg, endpoint);
 		if (!response) return;
 
 		emitter?.emit("hit", {

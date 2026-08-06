@@ -1,4 +1,4 @@
-import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
+import { detectDomain, getHoneypotResponse, getPhpHeaders } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -26,8 +26,10 @@ function clientIp(h: Record<string, any>): string | undefined {
  * Only intercepts known honeypot endpoints (see `ALL_ENDPOINTS`).
  * All other requests are passed through to later routes/middleware.
  *
+ * Use `exclude` to prevent specific paths from being intercepted by the honeypot.
+ *
  * @param config - Partial site configuration (domain auto-detected if missing)
- * @param options - Optional emitter for logging honeypot hits
+ * @param options - Optional emitter for logging honeypot hits, and paths to exclude
  * @returns Hono middleware function
  *
  * @example
@@ -42,15 +44,21 @@ function clientIp(h: Record<string, any>): string | undefined {
  * });
  *
  * const app = new Hono();
- * app.use("*", honoMiddleware({ domain: "example.com" }, { emitter }));
+ * app.use("*", honoMiddleware({ domain: "example.com" }, { emitter, exclude: ["/"] }));
  * ```
  */
 export function honoMiddleware(
 	config?: Partial<SiteConfig>,
-	options?: { emitter?: HoneypotEmitter },
+	options?: { emitter?: HoneypotEmitter; exclude?: string[] },
 ) {
+	const excluded = new Set(options?.exclude ?? []);
 	return async (c: any, next: any) => {
 		const endpoint = c.req.path;
+
+		if (excluded.has(endpoint)) {
+			return next();
+		}
+
 		const rawHeaders: Record<string, string> = {};
 		c.req.raw.headers.forEach((v: string, k: string) => {
 			rawHeaders[k] = v;
@@ -58,7 +66,7 @@ export function honoMiddleware(
 		const detected = detectDomain({ headers: rawHeaders });
 		const cfg = resolveConfig(config, detected);
 
-		const response = getResponse(cfg, endpoint);
+		const response = getHoneypotResponse(cfg, endpoint);
 		if (!response) {
 			return next();
 		}

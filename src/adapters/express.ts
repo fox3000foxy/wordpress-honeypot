@@ -1,4 +1,4 @@
-import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
+import { detectDomain, getHoneypotResponse, getPhpHeaders } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -27,10 +27,12 @@ function clientIp(h: Record<string, any>): string | undefined {
  * All other requests are passed to the next middleware/handler via `next()`,
  * so routes defined after `app.use(honeypot)` are never shadowed.
  *
+ * Use `exclude` to prevent specific paths from being intercepted by the honeypot.
+ *
  * Auto-detects domain from `Host` / `X-Forwarded-Host` headers if `config.domain` is omitted.
  *
  * @param config - Partial site configuration (domain auto-detected if missing)
- * @param options - Optional emitter for logging honeypot hits
+ * @param options - Optional emitter for logging honeypot hits, and paths to exclude
  * @returns Express middleware function
  *
  * @example
@@ -45,20 +47,26 @@ function clientIp(h: Record<string, any>): string | undefined {
  * });
  *
  * const app = express();
- * app.use(expressMiddleware({ domain: "example.com" }, { emitter }));
+ * app.use(expressMiddleware({ domain: "example.com" }, { emitter, exclude: ["/"] }));
  * app.listen(8080);
  * ```
  */
 export function expressMiddleware(
 	config?: Partial<SiteConfig>,
-	options?: { emitter?: HoneypotEmitter },
+	options?: { emitter?: HoneypotEmitter; exclude?: string[] },
 ) {
+	const excluded = new Set(options?.exclude ?? []);
 	return (req: any, res: any, next: any) => {
 		const endpoint = req.path || req.url;
+
+		if (excluded.has(endpoint)) {
+			return next();
+		}
+
 		const detected = detectDomain(req);
 		const cfg = resolveConfig(config, detected);
 
-		const response = getResponse(cfg, endpoint);
+		const response = getHoneypotResponse(cfg, endpoint);
 		if (!response) {
 			return next();
 		}

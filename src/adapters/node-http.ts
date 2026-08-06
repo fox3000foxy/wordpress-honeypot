@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { detectDomain, getPhpHeaders, getResponse } from "../core.js";
+import { detectDomain, getHoneypotResponse, getPhpHeaders } from "../core.js";
 import type { HoneypotEmitter } from "../emitter.js";
 import type { SiteConfig } from "../types.js";
 
@@ -27,8 +27,10 @@ function clientIp(h: Record<string, any>): string | undefined {
  * Only intercepts known honeypot endpoints (see `ALL_ENDPOINTS`).
  * Returns `true` if the request was handled (response sent), `false` if no honeypot route matched.
  *
+ * Use `exclude` to prevent specific paths from being intercepted by the honeypot.
+ *
  * @param config - Partial site configuration (domain auto-detected if missing)
- * @param options - Optional emitter for logging honeypot hits
+ * @param options - Optional emitter for logging honeypot hits, and paths to exclude
  * @returns Handler function that returns whether the request was handled
  *
  * @example
@@ -42,7 +44,7 @@ function clientIp(h: Record<string, any>): string | undefined {
  *   console.log(`[HONEYPOT] ${hit.ip} hit ${hit.endpoint}`);
  * });
  *
- * const handler = nodeHttpHandler({ domain: "example.com" }, { emitter });
+ * const handler = nodeHttpHandler({ domain: "example.com" }, { emitter, exclude: ["/"] });
  *
  * createServer((req, res) => {
  *   if (!handler(req, res)) {
@@ -54,16 +56,20 @@ function clientIp(h: Record<string, any>): string | undefined {
  */
 export function nodeHttpHandler(
 	config?: Partial<SiteConfig>,
-	options?: { emitter?: HoneypotEmitter },
+	options?: { emitter?: HoneypotEmitter; exclude?: string[] },
 ) {
+	const excluded = new Set(options?.exclude ?? []);
 	return (req: IncomingMessage, res: ServerResponse): boolean => {
 		const endpoint = req.url?.split("?")[0] || "/";
+
+		if (excluded.has(endpoint)) return false;
+
 		const detected = detectDomain({
 			headers: req.headers as Record<string, string>,
 		});
 		const cfg = resolveConfig(config, detected);
 
-		const response = getResponse(cfg, endpoint);
+		const response = getHoneypotResponse(cfg, endpoint);
 		if (!response) return false;
 
 		options?.emitter?.emit("hit", {
